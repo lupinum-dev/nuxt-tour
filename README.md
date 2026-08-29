@@ -8,25 +8,27 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-> [!WARNING]
-> Nuxt Tour is in its design phase. It is not published and does not provide a
-> working tour runtime yet. The repository freezes the smallest durable
-> contract before implementation starts.
+> [!IMPORTANT]
+> Nuxt Tour is preparing its first public release. The API is implemented and
+> tested, but `0.1.0` is not published to npm yet.
 
 ## Why Nuxt Tour?
 
-Nuxt Tour will make product tours feel like part of Nuxt and Vue. An application
-will define a typed tour, mark semantic targets, render one host, and control the
-journey from one composable. The library will own route changes, late targets,
+Nuxt Tour makes product tours feel like part of Nuxt and Vue. An application
+defines a typed tour, marks semantic targets, renders one host, and controls the
+journey from one composable. The library owns route changes, late targets,
 positioning, cleanup, focus, and failure diagnostics.
 
-Nuxt Tour will not be an analytics product, visual editor, checklist system, or
+Nuxt Tour is not an analytics product, visual editor, checklist system, or
 thin wrapper around another tour library.
 
-## Proposed quick start
+## Quick start
 
-The first implementation must make this complete journey work without runtime
-imports in a Nuxt application:
+Install the package and add the module:
+
+```bash
+pnpm add @lupinum/nuxt-tour
+```
 
 ```ts
 // nuxt.config.ts
@@ -73,14 +75,22 @@ const onboarding = useTour('onboarding')
 </template>
 ```
 
-Read the [design specification](docs/content/docs/2.design/1.product-and-scope.md)
-before implementing a public surface.
+Nuxt discovers definitions in `app/tours`, auto-imports the composables, and
+generates literal tour and step ID types. Add one `<TourHost />` near the root of
+the application.
+
+For plain Vue, import the runtime from `@lupinum/nuxt-tour/vue` and install
+`createTourPlugin({ tours: [...] })`. Import `@lupinum/nuxt-tour/style.css` for
+the default theme or `structure.css` for layout rules only.
+
+Read the [documentation](docs/content/docs/1.getting-started/1.index.md) for
+targets, route-aware steps, interaction modes, events, and errors.
 
 ## Requirements
 
 - Node.js 22.14 or later, Node.js 24, or Node.js 26.
 - Nuxt 4 for the Nuxt module.
-- Vue 3.5 or later for the planned Vue runtime.
+- Vue 3.3 or later for the Vue runtime.
 - pnpm 11 for repository development.
 
 ## Development
