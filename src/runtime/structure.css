@@ -1,0 +1,66 @@
+[data-tour-part='root'] {
+  position: fixed;
+  z-index: 2147483000;
+  inset: 0;
+  pointer-events: none;
+}
+
+[data-tour-part='overlay'],
+[data-tour-part='blocker'],
+[data-tour-part='spotlight'] {
+  position: fixed;
+}
+
+[data-tour-part='overlay'] {
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+}
+
+[data-tour-part='spotlight'] {
+  z-index: 1;
+  pointer-events: none;
+}
+
+[data-tour-part='blocker'] {
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+[data-tour-part='positioner'] {
+  z-index: 3;
+  max-width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+[data-tour-part='card'] {
+  position: relative;
+  max-block-size: calc(100vh - 2rem);
+  max-block-size: calc(100dvh - 2rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+[data-tour-part='arrow'] {
+  position: absolute;
+  z-index: -1;
+  width: 0.625rem;
+  height: 0.625rem;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+[data-tour-part='actions'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+[data-tour-part='close'] {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+}

@@ -10,9 +10,22 @@
   "bugs": { "url": "https://github.com/lupinum-dev/nuxt-tour/issues" },
   "packageManager": "pnpm@11.21.0",
   "engines": { "node": "^22.14.0 || ^24.0.0 || ^26.0.0" },
-  "exports": { ".": { "types": "./dist/types.d.mts", "import": "./dist/module.mjs" } },
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    },
+    "./vue": {
+      "types": "./dist/runtime/vue/index.d.ts",
+      "import": "./dist/runtime/vue/index.js"
+    },
+    "./style.css": "./dist/runtime/style.css",
+    "./structure.css": "./dist/runtime/structure.css"
+  },
+  "sideEffects": ["**/*.css"],
   "main": "./dist/module.mjs",
-  "typesVersions": { "*": { ".": ["./dist/types.d.mts"] } },
+  "types": "./dist/types.d.mts",
+  "typesVersions": { "*": { ".": ["./dist/types.d.mts"], "vue": ["./dist/runtime/vue/index.d.ts"] } },
   "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
   "publishConfig": { "access": "public" },
   "scripts": {
@@ -33,23 +46,25 @@
     "verify": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm docs:build"
   },
   "dependencies": {
+    "@floating-ui/vue": "^2.0.1",
     "@nuxt/kit": "^4.5.2"
   },
   "peerDependencies": {
     "nuxt": "^4.0.0",
-    "vue": "^3.5.0"
+    "vue": "^3.3.0"
   },
-  "peerDependenciesMeta": {
-    "nuxt": { "optional": true }
-  },
+  "peerDependenciesMeta": { "nuxt": { "optional": true } },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.5.2",
     "@nuxt/test-utils": "^4.1.0",
     "@types/node": "26.1.1",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.5.0",
     "changelogen": "0.6.2",
     "eslint": "^10.9.0",
+    "happy-dom": "20.11.12",
     "nuxt": "^4.5.2",
     "pkg-pr-new": "0.0.87",
     "typescript": "~5.9.3",
