@@ -81,7 +81,10 @@ the application.
 
 For plain Vue, import the runtime from `@lupinum/nuxt-tour/vue` and install
 `createTourPlugin({ tours: [...] })`. Import `@lupinum/nuxt-tour/style.css` for
-the default theme or `structure.css` for layout rules only.
+the default theme or `structure.css` for layout rules only. The default theme
+follows the system color scheme and recognizes `.light`, `.dark`, and matching
+`data-theme` values. Override its `--tour-*` custom properties from application
+CSS when the card should match your product more closely.
 
 Read the [documentation](docs/content/docs/1.getting-started/1.index.md) for
 targets, route-aware steps, interaction modes, events, and errors.

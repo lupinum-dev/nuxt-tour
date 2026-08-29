@@ -416,7 +416,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
           }
         }
 
-        await this.#leaveCurrent(id)
+        await this.#leaveCurrent(id, { hide: false })
         session.cleanup = candidateCleanup
         candidateCleanup = null
 
@@ -456,7 +456,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
     return { signal, tourId: definition.id, stepId: step.id, transitionId: id }
   }
 
-  async #leaveCurrent(id: string): Promise<void> {
+  async #leaveCurrent(id: string, options: { hide?: boolean } = {}): Promise<void> {
     const session = this.#active
     if (!session?.step) return
 
@@ -481,7 +481,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
     })
 
     try {
-      await this.#adapter.hide?.(presentation)
+      if (options.hide !== false) await this.#adapter.hide?.(presentation)
     }
     finally {
       this.#runCleanup(session)

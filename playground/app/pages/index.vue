@@ -4,7 +4,7 @@ defineOptions({ name: 'PlaygroundHomePage' })
 
 <template>
   <main class="page">
-    <p class="eyebrow">
+    <p class="context">
       Nuxt 4 · Vue 3
     </p>
     <h1>Accessible product tours without the glue code.</h1>

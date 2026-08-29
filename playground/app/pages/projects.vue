@@ -4,7 +4,7 @@ defineOptions({ name: 'PlaygroundProjectsPage' })
 
 <template>
   <main class="page">
-    <p class="eyebrow">
+    <p class="context">
       Example destination
     </p>
     <div class="page-heading">

@@ -203,6 +203,9 @@ describe('tour controller', () => {
     resolveDestination('element')
     await transition
     expect(tour.currentStepId.value).toBe('projects')
+    expect(hide).not.toHaveBeenCalled()
+
+    await tour.cancel()
     expect(hide).toHaveBeenCalledOnce()
   })
 

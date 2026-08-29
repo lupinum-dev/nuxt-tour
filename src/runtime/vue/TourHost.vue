@@ -178,8 +178,11 @@ watch(
   presentation,
   async (current) => {
     reference.value = current?.target ?? null
-    targetRect.value = null
-    if (!current) return
+    if (!current) {
+      targetRect.value = null
+      return
+    }
+    if (!current.target) targetRect.value = null
     try {
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
@@ -241,12 +244,12 @@ onBeforeUnmount(() => {
     >
       <div
         data-tour-part="overlay"
-        :data-centered="presentation && !presentation.target ? '' : undefined"
+        :data-centered="presentation && (!presentation.target || !targetRect) ? '' : undefined"
         aria-hidden="true"
       />
 
       <div
-        v-if="targetRect"
+        v-if="presentation?.target && targetRect"
         data-tour-part="spotlight"
         :style="spotlightStyle"
         aria-hidden="true"

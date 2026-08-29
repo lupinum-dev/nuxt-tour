@@ -79,6 +79,42 @@ describe('Vue runtime', () => {
     wrapper.unmount()
   })
 
+  it('keeps the spotlight mounted while replacing targeted steps', async () => {
+    const definition = defineTour({
+      id: 'continuous-backdrop',
+      steps: [
+        { id: 'one', target: 'one', title: 'One', content: 'One' },
+        { id: 'two', target: 'two', title: 'Two', content: 'Two' },
+      ],
+    })
+    const installation = createTourInstallation({ tours: [definition] })
+    const App = defineComponent({
+      setup() {
+        const tour = useTour(definition)
+        return () => h('main', [
+          h('button', { id: 'start', onClick: () => tour.start() }, 'Start tour'),
+          h('button', { 'data-tour-target': 'one' }, 'First target'),
+          h('button', { 'data-tour-target': 'two' }, 'Second target'),
+          h(TourHost),
+        ])
+      },
+    })
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [installation.plugin] } })
+    for (const element of wrapper.findAll('button')) makeVisible(element.element as HTMLElement)
+
+    await wrapper.get('#start').trigger('click')
+    await flushTour()
+    const spotlight = document.querySelector('[data-tour-part="spotlight"]')
+    expect(spotlight).not.toBeNull()
+
+    document.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button:last-child')?.click()
+    await flushTour()
+
+    expect(document.querySelector('[data-tour-part="spotlight"]')).toBe(spotlight)
+    expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-tour-step-id')).toBe('two')
+    wrapper.unmount()
+  })
+
   it('supports semantic refs and disposes their registrations', async () => {
     const definition = defineTour({
       id: 'targets',
