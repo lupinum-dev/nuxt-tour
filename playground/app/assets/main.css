@@ -1,0 +1,129 @@
+:root {
+  color: #172016;
+  background: #f3f6ee;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #6957d8;
+  outline-offset: 3px;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.site-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem clamp(1rem, 4vw, 4rem);
+  border-block-end: 1px solid #cfd8c8;
+  background: rgb(255 255 255 / 75%);
+}
+
+.brand {
+  color: inherit;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+}
+
+nav a {
+  min-height: 2.75rem;
+  padding: 0.625rem;
+  color: #445041;
+}
+
+.start-button,
+.primary-button {
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: #273d25;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.page {
+  width: min(70rem, calc(100% - 2rem));
+  margin-inline: auto;
+  padding-block: clamp(5rem, 12vw, 10rem);
+}
+
+.page h1 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+.eyebrow {
+  color: #65735f;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: 42rem;
+  color: #4b5847;
+  font-size: clamp(1.125rem, 2vw, 1.4rem);
+  line-height: 1.6;
+}
+
+.page-heading {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.error {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #8b1e1e;
+  color: #fff;
+}
+
+[data-tour-part='root'] {
+  --tour-accent: #273d25;
+  --tour-card-radius: 1.25rem;
+}
+
+@media (max-width: 40rem) {
+  .site-header,
+  .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  nav {
+    order: 3;
+  }
+}
