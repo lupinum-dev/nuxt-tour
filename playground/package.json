@@ -1,0 +1,15 @@
+{
+  "name": "nuxt-tour-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@lupinum/nuxt-tour": "workspace:*",
+    "nuxt": "^4.5.2"
+  }
+}

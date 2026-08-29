@@ -1,0 +1,25 @@
+packages:
+  - docs
+  - playground
+
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: false
+  vue-demi: true
+
+overrides:
+  # mkdist 2.4 requires the 0.1 line. Remove when its peer range accepts 0.2.
+  vue-sfc-transformer: 0.1.1
+  # Remove when fontless requires esbuild 0.28.1 or newer.
+  'fontless>esbuild': 0.28.2
+  # Remove when tsup and bundle-require require esbuild 0.28.1 or newer.
+  'tsup>esbuild': 0.28.2
+  'bundle-require>esbuild': 0.28.2
+  # Remove when Vite requires esbuild 0.28.1 or newer.
+  'vite>esbuild': 0.28.2

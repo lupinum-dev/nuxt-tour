@@ -1,0 +1,61 @@
+{
+  "name": "@lupinum/nuxt-tour",
+  "version": "0.1.0",
+  "description": "Build accessible, route-aware product tours with a Vue-native API and Nuxt-first developer experience.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Lupinum OG <info@lupinum.com> (https://lupinum.com)",
+  "homepage": "https://nuxt-tour.lupinum.com",
+  "repository": { "type": "git", "url": "git+https://github.com/lupinum-dev/nuxt-tour.git" },
+  "bugs": { "url": "https://github.com/lupinum-dev/nuxt-tour/issues" },
+  "packageManager": "pnpm@11.21.0",
+  "engines": { "node": "^22.14.0 || ^24.0.0 || ^26.0.0" },
+  "exports": { ".": { "types": "./dist/types.d.mts", "import": "./dist/module.mjs" } },
+  "main": "./dist/module.mjs",
+  "typesVersions": { "*": { ".": ["./dist/types.d.mts"] } },
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "audit:all": "pnpm audit",
+    "build": "nuxt-module-build build",
+    "dev": "pnpm dev:prepare && nuxt dev playground",
+    "dev:build": "pnpm dev:prepare && nuxt build playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+    "docs:build": "pnpm --dir docs build",
+    "docs:dev": "pnpm --dir docs dev",
+    "lint": "eslint .",
+    "pack:release": "node scripts/pack-release.mjs",
+    "preview:pack": "node scripts/pack-release.mjs --preview",
+    "release:prepare": "changelogen --bump --clean",
+    "release:verify": "pnpm audit:all && pnpm verify && pnpm pack:release && node scripts/verify-packed-consumer.mjs",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck",
+    "verify": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm docs:build"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^4.5.2"
+  },
+  "peerDependencies": {
+    "nuxt": "^4.0.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "nuxt": { "optional": true }
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.17.0",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.5.2",
+    "@nuxt/test-utils": "^4.1.0",
+    "@types/node": "26.1.1",
+    "changelogen": "0.6.2",
+    "eslint": "^10.9.0",
+    "nuxt": "^4.5.2",
+    "pkg-pr-new": "0.0.87",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11",
+    "vue": "^3.5.40",
+    "vue-tsc": "^3.3.11",
+    "yaml": "2.9.0"
+  }
+}
