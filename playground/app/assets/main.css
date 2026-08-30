@@ -1,0 +1,225 @@
+:root {
+  --page-background: #f3f6ee;
+  --page-surface: rgb(255 255 255 / 82%);
+  --page-text: #172016;
+  --page-muted: #4b5847;
+  --page-subtle: #65735f;
+  --page-border: #cfd8c8;
+  --page-accent: #273d25;
+  --page-accent-hover: #1c301b;
+  --page-accent-contrast: #fff;
+  --page-focus: #6957d8;
+  --page-error: #8b1e1e;
+  color: var(--page-text);
+  background: var(--page-background);
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  scrollbar-color: var(--page-border) var(--page-background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page-background);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--page-focus) 28%, transparent);
+}
+
+button,
+a {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--page-focus);
+  outline-offset: 3px;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.site-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem clamp(1rem, 4vw, 4rem);
+  border-block-end: 1px solid var(--page-border);
+  background: var(--page-surface);
+}
+
+.brand {
+  color: inherit;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+}
+
+nav a {
+  min-height: 2.75rem;
+  padding: 0.625rem;
+  border-radius: 0.5rem;
+  color: var(--page-muted);
+  text-underline-offset: 0.25em;
+}
+
+nav a.router-link-exact-active {
+  color: var(--page-text);
+  font-weight: 700;
+}
+
+.start-button,
+.primary-button {
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--page-accent);
+  color: var(--page-accent-contrast);
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 140ms ease-out, transform 140ms ease-out;
+}
+
+.start-button:active,
+.primary-button:active {
+  transform: translateY(1px);
+}
+
+.page {
+  width: min(70rem, calc(100% - 2rem));
+  margin-inline: auto;
+  padding-block: clamp(5rem, 12vw, 10rem);
+}
+
+.page h1 {
+  max-width: 14ch;
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.context {
+  margin-block-end: 1rem;
+  color: var(--page-subtle);
+  font-weight: 700;
+}
+
+.lede {
+  max-width: 42rem;
+  color: var(--page-muted);
+  font-size: clamp(1.125rem, 2vw, 1.4rem);
+  line-height: 1.6;
+}
+
+.page-heading {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.example-spacer {
+  min-height: 70vh;
+}
+
+.example-insights {
+  min-height: 60vh;
+  padding: clamp(3rem, 8vw, 7rem);
+  border: 1px solid var(--page-border);
+  border-radius: 2rem;
+  margin-block-end: 12vh;
+  background: var(--page-surface);
+}
+
+.example-insights h2 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.25rem, 7vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.error {
+  position: fixed;
+  inset-block-end: 1rem;
+  inset-inline: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--page-error);
+  color: #fff;
+}
+
+[data-tour-part='root'] {
+  --tour-accent: #273d25;
+  --tour-accent-hover: #1c301b;
+  --tour-focus: #6957d8;
+  --tour-card-radius: 1.25rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  nav a:hover {
+    color: var(--page-text);
+  }
+
+  .start-button:hover,
+  .primary-button:hover {
+    background: var(--page-accent-hover);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-background: #101510;
+    --page-surface: rgb(21 29 21 / 88%);
+    --page-text: #edf4e9;
+    --page-muted: #bdc9b8;
+    --page-subtle: #93a58d;
+    --page-border: #354233;
+    --page-accent: #b7d6ad;
+    --page-accent-hover: #c9e2c1;
+    --page-accent-contrast: #102010;
+    --page-focus: #b7aef5;
+    --page-error: #b93636;
+    color-scheme: dark;
+  }
+
+  [data-tour-part='root'] {
+    --tour-accent: #b7d6ad;
+    --tour-accent-hover: #c9e2c1;
+    --tour-accent-contrast: #102010;
+    --tour-focus: #b7aef5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-button,
+  .primary-button {
+    transition: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  .site-header,
+  .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  nav {
+    order: 3;
+  }
+}

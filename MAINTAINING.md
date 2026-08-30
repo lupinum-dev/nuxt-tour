@@ -1,14 +1,14 @@
 # Maintaining Nuxt Tour
 
-## Design phase
+## Pre-release contract
 
 The package is not published. Change the design specification before or with a
 public API implementation. State the user journey and acceptance criterion for
 each new option, export, event, or state value. Prefer a hard cutover while no
 users or persisted data depend on the old design.
 
-Do not present a proposed API as implemented behavior. Remove the design-phase
-warning only after the quick-start journey works from the packed package.
+Do not present a planned API as implemented behavior. Keep the README release
+notice until the quick-start journey works from the packed package.
 
 ## Quick fix
 

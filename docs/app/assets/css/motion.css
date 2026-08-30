@@ -1,0 +1,12 @@
+/* Keep deliberate in-page navigation spatially clear without changing native wheel or touch scrolling. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

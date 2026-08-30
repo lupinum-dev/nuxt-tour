@@ -6,6 +6,8 @@ release-artifacts
 .preview-artifacts
 .nuxt
 .output
+playwright-report
+test-results
 .vercel
 .env*
 !.env.example

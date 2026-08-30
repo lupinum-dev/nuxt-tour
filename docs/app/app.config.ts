@@ -14,12 +14,5 @@ export default defineAppConfig({
     repository: { url: 'https://github.com/lupinum-dev/nuxt-tour', branch: 'main', contentDirectory: 'docs/content' },
     analytics: { plausible: { scriptId: '' } },
     feedback: { enabled: true },
-    landing: {
-      title: { en: 'Nuxt Tour' },
-      description: { en: 'Build accessible, route-aware product tours with a Vue-native API and Nuxt-first developer experience.' },
-      primary: { label: { en: 'Get started' }, to: { en: '/docs' } },
-      secondary: { label: { en: 'View on GitHub' }, to: { en: 'https://github.com/lupinum-dev/nuxt-tour' } },
-      install: { command: 'pnpm add @lupinum/nuxt-tour' },
-    },
   },
 })
