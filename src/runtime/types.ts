@@ -58,7 +58,6 @@ export interface TourStepContext {
   readonly signal: AbortSignal
   readonly tourId: string
   readonly stepId: string
-  readonly transitionId: string
 }
 
 interface TourStepBase {
@@ -102,24 +101,23 @@ export interface TourStartOptions<StepId extends string = string> {
 export type TourEndReason = 'completed' | 'skipped' | 'cancelled'
 
 interface TourEventBase {
-  tourId: string
-  transitionId: string
+  readonly tourId: string
 }
 
 export interface TourEventMap<StepId extends string = string> {
   'tour:start': TourEventBase
-  'step:before': TourEventBase & { stepId: StepId, index: number }
-  'step:show': TourEventBase & { stepId: StepId, index: number }
-  'step:leave': TourEventBase & { stepId: StepId, index: number }
+  'step:before': TourEventBase & { readonly stepId: StepId, readonly index: number }
+  'step:show': TourEventBase & { readonly stepId: StepId, readonly index: number }
+  'step:leave': TourEventBase & { readonly stepId: StepId, readonly index: number }
   'target:missing': TourEventBase & {
-    stepId: StepId
-    index: number
-    target: TourTarget
-    timeout: number
-    behavior: TourMissingTarget
+    readonly stepId: StepId
+    readonly index: number
+    readonly target: TourTarget
+    readonly timeout: number
+    readonly behavior: TourMissingTarget
   }
-  'tour:end': TourEventBase & { reason: TourEndReason, cancelReason?: string }
-  'tour:error': TourEventBase & { error: unknown }
+  'tour:end': TourEventBase & { readonly reason: TourEndReason, readonly cancelReason?: string }
+  'tour:error': TourEventBase & { readonly error: unknown }
 }
 
 export type TourEventType = keyof TourEventMap

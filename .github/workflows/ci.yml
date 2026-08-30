@@ -55,7 +55,7 @@ jobs:
           - os: ubuntu-24.04
             node: 22.19.0
             framework: vue
-            framework-version: 3.3.0
+            framework-version: 3.5.0
           - os: windows-2025
             node: 24.11.0
             framework: vue

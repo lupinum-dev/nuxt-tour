@@ -8,10 +8,6 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
-> [!IMPORTANT]
-> Nuxt Tour is preparing its first public release. Install from a package
-> preview until `0.1.0` is published to npm.
-
 ## Why Nuxt Tour?
 
 Nuxt Tour makes product tours feel like part of Nuxt and Vue. An application
@@ -94,7 +90,7 @@ targets, route-aware steps, interaction modes, events, and errors.
 
 - Node.js 22.19 or later, Node.js 24.11 or later, or Node.js 26.
 - Nuxt 4 for the Nuxt module.
-- Vue 3.3 or later for the Vue runtime.
+- Vue 3.5 or later for the Vue runtime.
 - pnpm 11 for repository development.
 
 ## Development

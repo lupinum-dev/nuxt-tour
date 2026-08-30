@@ -3,7 +3,7 @@ const onboarding = useNuxtTour('onboarding')
 </script>
 
 <template>
-  <main>
+  <main v-tour-target="'welcome-shell'">
     <div>Nuxt Tour fixture</div>
     <button
       v-tour-target="'welcome'"

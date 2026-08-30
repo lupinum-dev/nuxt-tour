@@ -1,21 +1,18 @@
 <script setup lang="ts">
-type RecipeId = 'media' | 'interaction' | 'programmatic' | 'centered'
+import { markRaw } from 'vue'
+import TourRecipeCenteredPreview from './recipes/TourRecipeCenteredPreview.vue'
+import TourRecipeInteractionPreview from './recipes/TourRecipeInteractionPreview.vue'
+import TourRecipeMediaPreview from './recipes/TourRecipeMediaPreview.vue'
+import TourRecipeProgrammaticPreview from './recipes/TourRecipeProgrammaticPreview.vue'
 
-const mediaTour = useNuxtTour('recipe-media')
-const interactionTour = useNuxtTour('recipe-interaction')
-const programmaticTour = useNuxtTour('recipe-programmatic')
-const centeredTour = useNuxtTour('recipe-centered')
-const activeId = ref<RecipeId>('media')
-const activeFilter = ref<'all' | 'at-risk'>('all')
-const programmaticTarget = useTemplateRef<HTMLButtonElement>('programmaticTarget')
 const copied = ref(false)
 const errorMessage = ref('')
 const closingScriptTag = '</' + 'script>'
 
-useTourTarget('recipe-programmatic-target', programmaticTarget)
-
 const recipes = {
   media: {
+    controller: useNuxtTour('recipe-media'),
+    preview: markRaw(TourRecipeMediaPreview),
     label: 'Rich media',
     icon: 'lucide:image',
     description: 'Render an image, video, or live Vue component inside the default card.',
@@ -32,6 +29,8 @@ export default defineTour({
 })`,
   },
   interaction: {
+    controller: useNuxtTour('recipe-interaction'),
+    preview: markRaw(TourRecipeInteractionPreview),
     label: 'Live controls',
     icon: 'lucide:mouse-pointer-click',
     description: 'Keep the highlighted control usable while the rest of the page stays protected.',
@@ -44,6 +43,8 @@ export default defineTour({
 }`,
   },
   programmatic: {
+    controller: useNuxtTour('recipe-programmatic'),
+    preview: markRaw(TourRecipeProgrammaticPreview),
     label: 'Vue refs',
     icon: 'lucide:component',
     description: 'Register a semantic target from a component ref when a directive does not fit.',
@@ -57,6 +58,8 @@ ${closingScriptTag}
 </template>`,
   },
   centered: {
+    controller: useNuxtTour('recipe-centered'),
+    preview: markRaw(TourRecipeCenteredPreview),
     label: 'Announcements',
     icon: 'lucide:party-popper',
     description: 'Omit the target for a deliberate welcome, checkpoint, or completion step.',
@@ -68,23 +71,14 @@ ${closingScriptTag}
   },
 } as const
 
-const activeRecipe = computed(() => recipes[activeId.value])
-const pending = computed(() => (
-  mediaTour.pending.value
-  || interactionTour.pending.value
-  || programmaticTour.pending.value
-  || centeredTour.pending.value
-))
+type RecipeId = keyof typeof recipes
 
-function controllerFor(id: RecipeId) {
-  if (id === 'media') return mediaTour
-  if (id === 'interaction') return interactionTour
-  if (id === 'programmatic') return programmaticTour
-  return centeredTour
-}
+const activeId = ref<RecipeId>('media')
+const activeRecipe = computed(() => recipes[activeId.value])
+const pending = computed(() => Object.values(recipes).some(recipe => recipe.controller.pending.value))
 
 async function selectRecipe(id: RecipeId): Promise<void> {
-  const current = controllerFor(activeId.value)
+  const current = activeRecipe.value.controller
   if (current.isActive.value) await current.cancel('recipe-changed')
   activeId.value = id
   copied.value = false
@@ -94,7 +88,7 @@ async function selectRecipe(id: RecipeId): Promise<void> {
 async function startRecipe(): Promise<void> {
   errorMessage.value = ''
   try {
-    await controllerFor(activeId.value).start({ replace: true })
+    await activeRecipe.value.controller.start({ replace: true })
   }
   catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'The recipe could not start.'
@@ -176,81 +170,7 @@ async function copyRecipe(): Promise<void> {
         </div>
 
         <div class="recipe-stage">
-          <article
-            v-if="activeId === 'media'"
-            v-tour-target="'recipe-media-target'"
-            class="media-preview"
-          >
-            <img
-              src="/recipes/habitat-overview.svg"
-              width="640"
-              height="360"
-              alt="Habitat restoration dashboard preview"
-            >
-            <div>
-              <strong>Wetland restoration</strong>
-              <span>68% complete · 3 active areas</span>
-            </div>
-          </article>
-
-          <div
-            v-else-if="activeId === 'interaction'"
-            class="interaction-preview"
-          >
-            <p>Project health</p>
-            <div
-              v-tour-target="'recipe-interaction-target'"
-              class="filter-control"
-              aria-label="Filter project health"
-            >
-              <button
-                type="button"
-                :aria-pressed="activeFilter === 'all'"
-                @click="activeFilter = 'all'"
-              >
-                All
-              </button>
-              <button
-                type="button"
-                :aria-pressed="activeFilter === 'at-risk'"
-                @click="activeFilter = 'at-risk'"
-              >
-                At risk
-              </button>
-            </div>
-            <strong>{{ activeFilter === 'all' ? '12 projects' : '3 projects need attention' }}</strong>
-          </div>
-
-          <div
-            v-else-if="activeId === 'programmatic'"
-            class="programmatic-preview"
-          >
-            <Icon
-              name="lucide:braces"
-              aria-hidden="true"
-            />
-            <p>The button below is registered from its Vue ref.</p>
-            <button
-              ref="programmaticTarget"
-              type="button"
-            >
-              Create project
-            </button>
-          </div>
-
-          <div
-            v-else
-            class="centered-preview"
-          >
-            <span>
-              <Icon
-                name="lucide:check"
-                aria-hidden="true"
-              />
-            </span>
-            <strong>Setup complete</strong>
-            <p>This recipe intentionally has no target.</p>
-          </div>
+          <component :is="activeRecipe.preview" />
         </div>
 
         <details class="recipe-code">
@@ -450,7 +370,7 @@ async function copyRecipe(): Promise<void> {
 }
 
 .recipe-stage-toolbar > button,
-.programmatic-preview button {
+:deep(.programmatic-preview button) {
   display: inline-flex;
   min-height: 2.25rem;
   align-items: center;
@@ -486,7 +406,7 @@ async function copyRecipe(): Promise<void> {
   place-items: center;
 }
 
-.media-preview {
+:deep(.media-preview) {
   width: min(100%, 25rem);
   overflow: hidden;
   border-radius: 0.875rem;
@@ -494,40 +414,40 @@ async function copyRecipe(): Promise<void> {
   box-shadow: 0 1rem 2.5rem rgb(15 23 42 / 15%);
 }
 
-.media-preview img {
+:deep(.media-preview img) {
   display: block;
   width: 100%;
   height: auto;
 }
 
-.media-preview > div {
+:deep(.media-preview > div) {
   display: grid;
   gap: 0.2rem;
   padding: 1rem;
 }
 
-.media-preview span,
-.interaction-preview p,
-.programmatic-preview p,
-.centered-preview p {
+:deep(.media-preview span),
+:deep(.interaction-preview p),
+:deep(.programmatic-preview p),
+:deep(.centered-preview p) {
   color: var(--muted-foreground);
   font-size: 0.82rem;
 }
 
-.interaction-preview,
-.programmatic-preview,
-.centered-preview {
+:deep(.interaction-preview),
+:deep(.programmatic-preview),
+:deep(.centered-preview) {
   width: min(100%, 24rem);
   text-align: center;
 }
 
-.interaction-preview > p,
-.programmatic-preview p,
-.centered-preview p {
+:deep(.interaction-preview > p),
+:deep(.programmatic-preview p),
+:deep(.centered-preview p) {
   margin: 0;
 }
 
-.filter-control {
+:deep(.filter-control) {
   display: inline-flex;
   gap: 0.25rem;
   margin-block: 1.5rem;
@@ -537,7 +457,7 @@ async function copyRecipe(): Promise<void> {
   background: var(--background);
 }
 
-.filter-control button {
+:deep(.filter-control button) {
   min-height: 2.5rem;
   padding-inline: 0.9rem;
   border: 0;
@@ -550,24 +470,24 @@ async function copyRecipe(): Promise<void> {
   cursor: pointer;
 }
 
-.filter-control button[aria-pressed='true'] {
+:deep(.filter-control button[aria-pressed='true']) {
   background: var(--recipe-accent);
   color: white;
 }
 
-.programmatic-preview > svg {
+:deep(.programmatic-preview > svg) {
   width: 2rem;
   height: 2rem;
   margin-block-end: 1rem;
   color: var(--recipe-accent);
 }
 
-.programmatic-preview button {
+:deep(.programmatic-preview button) {
   margin: 1.5rem auto 0;
   justify-self: auto;
 }
 
-.centered-preview > span {
+:deep(.centered-preview > span) {
   display: inline-grid;
   width: 3rem;
   height: 3rem;
@@ -578,12 +498,12 @@ async function copyRecipe(): Promise<void> {
   place-items: center;
 }
 
-.centered-preview > span svg {
+:deep(.centered-preview > span svg) {
   width: 1.35rem;
   height: 1.35rem;
 }
 
-.centered-preview strong {
+:deep(.centered-preview strong) {
   display: block;
   margin-block-end: 0.35rem;
   font-size: 1.15rem;
@@ -667,7 +587,8 @@ async function copyRecipe(): Promise<void> {
   font-size: 0.85rem;
 }
 
-.recipe-lab :is(button, summary):focus-visible {
+.recipe-lab :is(button, summary):focus-visible,
+.recipe-lab :deep(button:focus-visible) {
   outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
@@ -679,7 +600,7 @@ async function copyRecipe(): Promise<void> {
   }
 
   .recipe-stage-toolbar > button:hover:not(:disabled),
-  .programmatic-preview button:hover {
+  :deep(.programmatic-preview button:hover) {
     background: #115e59;
   }
 }
@@ -755,7 +676,7 @@ async function copyRecipe(): Promise<void> {
   }
 
   .recipe-shell > nav button[aria-current='true'],
-  .media-preview {
+  :deep(.media-preview) {
     box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 32%);
   }
 }

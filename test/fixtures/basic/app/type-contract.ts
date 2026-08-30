@@ -4,6 +4,7 @@ const onboarding = useNuxtTour('onboarding')
 
 void onboarding.goTo('welcome')
 useTourTarget('welcome', ref<HTMLElement | null>(null))
+useTourTarget('welcome-shell', ref<HTMLElement | null>(null))
 
 // @ts-expect-error Unknown discovered tour IDs must fail at build time.
 useNuxtTour('onboadring')

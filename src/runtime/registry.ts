@@ -14,11 +14,13 @@ type SemanticTargetId<Target>
       ? Id
       : never
 
+type StepTarget<Step>
+  = (Step extends { readonly target?: infer Target } ? Target : never)
+    | (Step extends { readonly scrollTarget?: infer ScrollTarget } ? ScrollTarget : never)
+
 type DefinitionTarget<Definition>
   = Definition extends { readonly steps: readonly (infer Step)[] }
-    ? Step extends { readonly target?: infer Target }
-      ? Target
-      : never
+    ? StepTarget<Step>
     : never
 
 /** Semantic target IDs inferred from Nuxt's generated tour registry. */

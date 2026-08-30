@@ -15,7 +15,7 @@ export interface TourPluginOptions extends TourRuntimeOptions {
 /** The structural part of Vue Router used by the tour runtime. */
 export interface VueRouterLike {
   push(route: TourRoute): unknown
-  replace?(route: TourRoute): unknown
+  replace(route: TourRoute): unknown
   afterEach?(handler: () => void): () => void
 }
 
@@ -33,7 +33,7 @@ function createVueRouterAdapter(router: VueRouterLike | undefined): TourRouterAd
         const { replace: _replace, ...destination } = route
         location = destination
       }
-      const navigate = shouldReplace && router.replace ? router.replace : router.push
+      const navigate = shouldReplace ? router.replace : router.push
       internalNavigations += 1
       try {
         const failure = await navigate.call(router, location)
@@ -68,9 +68,7 @@ export function installTour(
   )
   app.provide(tourRuntimeKey, runtime)
   app.directive('tour-target', createTourTargetDirective(runtime.targets))
-  // app.onUnmount was added after Vue 3.3; keep the supported 3.3 baseline.
-  const appWithUnmount = app as App & { onUnmount?: (callback: () => void) => void }
-  appWithUnmount.onUnmount?.(() => runtime.dispose())
+  app.onUnmount(() => runtime.dispose())
   return runtime
 }
 

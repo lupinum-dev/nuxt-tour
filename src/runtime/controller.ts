@@ -44,6 +44,10 @@ type TargetResolution<ResolvedTarget>
   = | { readonly status: 'ready', readonly target: ResolvedTarget | null }
     | { readonly status: 'skip' }
 
+type RequiredTargetResolution<ResolvedTarget>
+  = | { readonly status: 'ready', readonly target: ResolvedTarget }
+    | { readonly status: 'skip' }
+
 function transitionId(): string {
   return globalThis.crypto?.randomUUID?.()
     ?? `tour-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
@@ -117,6 +121,13 @@ export class TourRuntime<ResolvedTarget = unknown> {
     const definition = this.#definitions.get(id)
     if (!definition) {
       throw new TourError('INVALID_DEFINITION', `Unknown tour ID: ${id}.`, { tourId: id })
+    }
+    if (typeof definitionOrId !== 'string' && definitionOrId !== definition) {
+      throw new TourError(
+        'INVALID_DEFINITION',
+        `Tour ${id} is not the definition installed in this application. Reuse the same definition object in createTourPlugin() and useTour().`,
+        { tourId: id },
+      )
     }
 
     const existing = this.#controllers.get(id)
@@ -234,7 +245,6 @@ export class TourRuntime<ResolvedTarget = unknown> {
     if (this.#active.value && !options.replace) {
       return Promise.reject(new TourError('TOUR_ALREADY_ACTIVE', `Tour ${this.#active.value.definition.id} is already active.`, {
         tourId: this.#active.value.definition.id,
-        transitionId: this.#active.value.transitionId,
       }))
     }
 
@@ -254,11 +264,11 @@ export class TourRuntime<ResolvedTarget = unknown> {
       const initialStep = definition.steps[atIndex]!
       if (this.#adapter.begin) {
         await this.#abortable(
-          this.#adapter.begin(this.#context(definition, initialStep, signal, id)),
+          this.#adapter.begin(this.#context(definition, initialStep, signal)),
           signal,
         )
       }
-      this.#emit({ type: 'tour:start', tourId: definition.id, transitionId: id })
+      this.#emit({ type: 'tour:start', tourId: definition.id })
       await this.#enter(atIndex, 1, signal, id, at !== undefined)
     })
   }
@@ -326,7 +336,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
       return Promise.resolve()
     }
     return this.#transition(`recover-target:${lostTransitionId}`, session.definition.id, async (signal, id) => {
-      const resolution = await this.#resolveStepTarget(session, step, session.index, signal, id)
+      const resolution = await this.#resolveStepTarget(session, step, session.index, signal)
       if (resolution.status === 'skip') {
         await this.#enter(session.index + 1, 1, signal, id)
         return
@@ -344,7 +354,6 @@ export class TourRuntime<ResolvedTarget = unknown> {
       if (this.#pending.value.key === key && this.#pending.value.tourId === tourId) return this.#pending.value.promise
       return Promise.reject(new TourError('TOUR_BUSY', 'Another tour transition is in progress.', {
         tourId,
-        transitionId: this.#active.value?.transitionId,
       }))
     }
 
@@ -397,20 +406,19 @@ export class TourRuntime<ResolvedTarget = unknown> {
     while (index >= 0 && index < definition.steps.length) {
       abortIfNeeded(signal)
       const step = definition.steps[index]!
-      const context = this.#context(definition, step, signal, id)
+      const context = this.#context(definition, step, signal)
       if (step.when && !(await this.#consumer(() => step.when!(context), signal))) {
         if (exact) {
           throw new TourError('STEP_UNAVAILABLE', `Step ${step.id} is not currently available.`, {
             tourId: definition.id,
             stepId: step.id,
-            transitionId: id,
           })
         }
         index += direction
         continue
       }
 
-      this.#emit({ type: 'step:before', tourId: definition.id, stepId: step.id, index, transitionId: id })
+      this.#emit({ type: 'step:before', tourId: definition.id, stepId: step.id, index })
 
       if (step.route !== undefined) {
         if (!this.#adapter.navigate) {
@@ -418,7 +426,6 @@ export class TourRuntime<ResolvedTarget = unknown> {
             tourId: definition.id,
             stepId: step.id,
             route: step.route,
-            transitionId: id,
           })
         }
         try {
@@ -430,16 +437,11 @@ export class TourRuntime<ResolvedTarget = unknown> {
             tourId: definition.id,
             stepId: step.id,
             route: step.route,
-            transitionId: id,
             cause,
           })
         }
       }
       abortIfNeeded(signal)
-
-      // The previous step's application effects must not overlap with the
-      // destination preparation, while its presentation remains in place.
-      await this.#runSessionCleanup(session)
 
       let candidateCleanup: (() => void) | null = null
       try {
@@ -459,14 +461,13 @@ export class TourRuntime<ResolvedTarget = unknown> {
             throw new TourError('PREPARE_FAILED', `Preparation failed for step ${step.id}.`, {
               tourId: definition.id,
               stepId: step.id,
-              transitionId: id,
               cause,
             })
           }
         }
         abortIfNeeded(signal)
 
-        const resolution = await this.#resolveStepTarget(session, step, index, signal, id)
+        const resolution = await this.#resolveStepTarget(session, step, index, signal)
         if (resolution.status === 'skip') {
           index += direction
           continue
@@ -476,7 +477,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
         session.cleanup = candidateCleanup
         candidateCleanup = null
         await this.#present(session, step, index, resolution.target, signal, id)
-        this.#emit({ type: 'step:show', tourId: definition.id, stepId: step.id, index, transitionId: id })
+        this.#emit({ type: 'step:show', tourId: definition.id, stepId: step.id, index })
         return
       }
       finally {
@@ -492,71 +493,26 @@ export class TourRuntime<ResolvedTarget = unknown> {
     step: TourStep,
     index: number,
     signal: AbortSignal,
-    id: string,
   ): Promise<TargetResolution<ResolvedTarget>> {
     if (step.target === undefined) return { status: 'ready', target: null }
 
-    const options = targetOptions(step.target, this.#defaults)
-    const target = await this.#abortable(
-      this.#adapter.resolveTarget(step.target, { signal, timeout: options.timeout }),
-      signal,
-    )
-    abortIfNeeded(signal)
-    if (target === null) {
-      this.#emit({
-        type: 'target:missing',
-        tourId: session.definition.id,
-        stepId: step.id,
-        index,
-        target: step.target,
-        timeout: options.timeout,
-        behavior: options.missing,
-        transitionId: id,
-      })
-      if (options.missing === 'skip') return { status: 'skip' }
-      throw new TourError('TARGET_NOT_FOUND', `Target was not found for step ${step.id}.`, {
-        tourId: session.definition.id,
-        stepId: step.id,
-        target: step.target,
-        route: step.route,
-        timeout: options.timeout,
-        transitionId: id,
-      })
-    }
+    const targetResolution = await this.#resolveTarget(session, step, index, step.target, signal, 'Target')
+    if (targetResolution.status === 'skip') return targetResolution
+    const target = targetResolution.target
 
     if (step.scroll !== false && this.#adapter.scroll) {
       let scrollTarget: ResolvedTarget | undefined
       if (step.scrollTarget !== undefined) {
-        const scrollTargetOptions = targetOptions(step.scrollTarget, this.#defaults)
-        scrollTarget = await this.#abortable(
-          this.#adapter.resolveTarget(step.scrollTarget, {
-            signal,
-            timeout: scrollTargetOptions.timeout,
-          }),
+        const scrollResolution = await this.#resolveTarget(
+          session,
+          step,
+          index,
+          step.scrollTarget,
           signal,
-        ) ?? undefined
-        abortIfNeeded(signal)
-        if (scrollTarget === undefined) {
-          this.#emit({
-            type: 'target:missing',
-            tourId: session.definition.id,
-            stepId: step.id,
-            index,
-            target: step.scrollTarget,
-            timeout: scrollTargetOptions.timeout,
-            behavior: scrollTargetOptions.missing,
-            transitionId: id,
-          })
-          if (scrollTargetOptions.missing === 'skip') return { status: 'skip' }
-          throw new TourError('TARGET_NOT_FOUND', `Scroll target was not found for step ${step.id}.`, {
-            tourId: session.definition.id,
-            stepId: step.id,
-            target: step.scrollTarget,
-            route: step.route,
-            timeout: scrollTargetOptions.timeout,
-            transitionId: id,
-          })
-        }
+          'Scroll target',
+        )
+        if (scrollResolution.status === 'skip') return scrollResolution
+        scrollTarget = scrollResolution.target
       }
       await this.#abortable(
         this.#adapter.scroll(
@@ -570,6 +526,41 @@ export class TourRuntime<ResolvedTarget = unknown> {
       abortIfNeeded(signal)
     }
     return { status: 'ready', target }
+  }
+
+  async #resolveTarget(
+    session: ActiveSession<ResolvedTarget>,
+    step: TourStep,
+    index: number,
+    requestedTarget: TourTarget,
+    signal: AbortSignal,
+    label: 'Target' | 'Scroll target',
+  ): Promise<RequiredTargetResolution<ResolvedTarget>> {
+    const options = targetOptions(requestedTarget, this.#defaults)
+    const target = await this.#abortable(
+      this.#adapter.resolveTarget(requestedTarget, { signal, timeout: options.timeout }),
+      signal,
+    )
+    abortIfNeeded(signal)
+    if (target !== null) return { status: 'ready', target }
+
+    this.#emit({
+      type: 'target:missing',
+      tourId: session.definition.id,
+      stepId: step.id,
+      index,
+      target: requestedTarget,
+      timeout: options.timeout,
+      behavior: options.missing,
+    })
+    if (options.missing === 'skip') return { status: 'skip' }
+    throw new TourError('TARGET_NOT_FOUND', `${label} was not found for step ${step.id}.`, {
+      tourId: session.definition.id,
+      stepId: step.id,
+      target: requestedTarget,
+      route: step.route,
+      timeout: options.timeout,
+    })
   }
 
   async #present(
@@ -598,9 +589,8 @@ export class TourRuntime<ResolvedTarget = unknown> {
     definition: TourDefinition,
     step: TourStep,
     signal: AbortSignal,
-    id: string,
   ): TourStepContext {
-    return { signal, tourId: definition.id, stepId: step.id, transitionId: id }
+    return { signal, tourId: definition.id, stepId: step.id }
   }
 
   async #leaveCurrent(
@@ -632,7 +622,6 @@ export class TourRuntime<ResolvedTarget = unknown> {
       tourId: session.definition.id,
       stepId: previousStep.id,
       index: previousIndex,
-      transitionId: id,
     })
     return cleared
   }
@@ -648,7 +637,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
     if (!session) return
     const tourId = session.definition.id
     const failure = await this.#teardown(reason, id)
-    this.#emit({ type: 'tour:end', tourId, reason, cancelReason, transitionId: id })
+    this.#emit({ type: 'tour:end', tourId, reason, cancelReason })
     if (failure) throw failure
   }
 
@@ -658,7 +647,7 @@ export class TourRuntime<ResolvedTarget = unknown> {
     const tourId = session.definition.id
     const teardownError = await this.#teardown('error', id)
     if (teardownError) reportError(teardownError)
-    this.#emit({ type: 'tour:error', tourId, error, transitionId: id })
+    this.#emit({ type: 'tour:error', tourId, error })
   }
 
   async #teardown(reason: TourEndReason | 'error', id: string): Promise<unknown> {

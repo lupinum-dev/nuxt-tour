@@ -15,6 +15,8 @@ import { useTour } from '../src/runtime/vue/use-tour'
 import { useTourTarget } from '../src/runtime/vue/use-tour-target'
 import { TourVueRuntime } from '../src/runtime/vue/runtime'
 
+vi.stubGlobal('matchMedia', () => ({ matches: true }))
+
 const visibleRect = {
   x: 40,
   y: 40,
@@ -321,6 +323,9 @@ describe('Vue runtime', () => {
         async push(route: unknown) {
           pushed.push(route)
         },
+        async replace(route: unknown) {
+          pushed.push(route)
+        },
       },
     })
     const wrapper = mount(defineComponent(() => () => null), {
@@ -572,6 +577,7 @@ describe('Vue runtime', () => {
           tours: [definition],
           router: {
             push: vi.fn(),
+            replace: vi.fn(),
             afterEach(handler) {
               afterEach = () => handler()
               return () => {}

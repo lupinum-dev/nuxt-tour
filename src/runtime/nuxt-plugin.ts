@@ -13,13 +13,10 @@ export function createNuxtTourPlugin(
     name: 'nuxt-tour',
     setup(nuxtApp) {
       const router = useRouter()
-      const runtime = installTour(nuxtApp.vueApp, {
+      installTour(nuxtApp.vueApp, {
         tours,
         ...options,
       }, callback => nuxtApp.runWithContext(callback), createNuxtRouterAdapter(router, nuxtApp, integration))
-      return {
-        provide: { nuxtTour: runtime },
-      }
     },
   })
 }

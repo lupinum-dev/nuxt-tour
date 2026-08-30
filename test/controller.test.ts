@@ -69,9 +69,40 @@ describe('tour definitions', () => {
     }))
       .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
   })
+
+  it.each([
+    { route: {} },
+    { route: { name: 'projects', path: '/projects' } },
+    { route: { path: '/projects', params: { id: 'one' } } },
+    { route: { name: 'projects', params: [] } },
+    { route: { path: '/projects', query: [] } },
+    { route: { path: '/projects', query: { page: Number.NaN } } },
+    { route: { path: '/projects', query: { filter: { nested: true } } } },
+    { scroll: null },
+    { scroll: [] },
+    { scroll: { behavior: 'slow' } },
+    { scroll: { block: 'middle' } },
+  ])('rejects invalid structured step options: %j', (invalidOptions) => {
+    expect(() => validateTourDefinition({
+      id: 'invalid-options',
+      steps: [{ id: 'step', title: 'Step', content: 'Content', ...invalidOptions }],
+    }))
+      .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
+  })
 })
 
 describe('tour controller', () => {
+  it('rejects a different definition object with an installed ID', () => {
+    const runtime = new TourRuntime([basicTour], adapter())
+    const clone = defineTour({
+      id: 'onboarding',
+      steps: [{ id: 'different', title: 'Different', content: 'Different' }],
+    })
+
+    expect(() => runtime.controller(clone))
+      .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
+  })
+
   it('rejects invalid runtime defaults', () => {
     expect(() => new TourRuntime([basicTour], adapter(), { missingTarget: 'ignore' as never }))
       .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
@@ -401,11 +432,12 @@ describe('tour controller', () => {
   })
 
   it('keeps the current step when backward missing-target skipping exhausts the tour', async () => {
+    const cleanup = vi.fn()
     const definition = defineTour({
       id: 'backward-missing',
       steps: [
         { id: 'missing', target: { id: 'gone', missing: 'skip' }, title: 'Missing', content: 'Missing' },
-        { id: 'shown', title: 'Shown', content: 'Shown' },
+        { id: 'shown', title: 'Shown', content: 'Shown', prepare: () => cleanup },
       ],
     })
     const runtime = new TourRuntime([definition], adapter({ resolveTarget: vi.fn(async () => null) }))
@@ -416,6 +448,10 @@ describe('tour controller', () => {
 
     expect(tour.isActive.value).toBe(true)
     expect(tour.currentStepId.value).toBe('shown')
+    expect(cleanup).not.toHaveBeenCalled()
+
+    await tour.cancel()
+    expect(cleanup).toHaveBeenCalledOnce()
   })
 
   it('aborts in-flight preparation and cleans it once', async () => {

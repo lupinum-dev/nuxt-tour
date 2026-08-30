@@ -1,7 +1,48 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from 'vitest'
-import { scrollTourTarget } from '../src/runtime/targets'
+import { sampleScrollReveal, scrollTourTarget } from '../src/runtime/scroll'
+
+describe('scroll reveal decisions', () => {
+  it('waits for a nearby target to decelerate across stable samples', () => {
+    const initial = {
+      startedAt: 0,
+      previousFrameAt: 0,
+      previousTop: 900,
+      previousLeft: 0,
+      lastActivityAt: 0,
+      moved: false,
+      stableFrames: 0,
+      revealFrames: 0,
+      revealCandidateAt: null,
+    }
+    const fast = sampleScrollReveal(initial, {
+      time: 20,
+      top: 430,
+      left: 0,
+      centerDistance: 30,
+      revealProximity: 220,
+    })
+    const slowing = sampleScrollReveal(fast.state, {
+      time: 40,
+      top: 410,
+      left: 0,
+      centerDistance: 10,
+      revealProximity: 220,
+    })
+    const ready = sampleScrollReveal(slowing.state, {
+      time: 80,
+      top: 400,
+      left: 0,
+      centerDistance: 0,
+      revealProximity: 220,
+    })
+
+    expect(fast.ready).toBe(false)
+    expect(slowing.ready).toBe(false)
+    expect(ready.ready).toBe(true)
+  })
+})
 
 describe('tour target scrolling', () => {
   it('does not settle during a smooth scroll startup pause', async () => {

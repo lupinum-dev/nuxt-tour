@@ -11,7 +11,9 @@ const placements = new Set([
 ])
 
 function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === 'object' && value !== null
+  if (typeof value !== 'object' || value === null) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -40,6 +42,67 @@ function validateTarget(target: unknown, tourId: string, stepId: string): void {
   }
   if (target.missing !== undefined && target.missing !== 'skip' && target.missing !== 'error') {
     invalid('A target missing policy must be skip or error.', tourId, stepId)
+  }
+}
+
+function validateRouteRecordValues(
+  value: unknown,
+  tourId: string,
+  stepId: string,
+  field: 'params' | 'query',
+): void {
+  if (!isRecord(value)) invalid(`Route ${field} must be an object.`, tourId, stepId)
+  for (const entry of Object.values(value)) {
+    const values = Array.isArray(entry) ? entry : [entry]
+    if (values.some(item => (
+      item !== null
+      && typeof item !== 'string'
+      && (typeof item !== 'number' || !Number.isFinite(item))
+    ))) {
+      invalid(`Route ${field} values must be strings, finite numbers, null, or arrays of those values.`, tourId, stepId)
+    }
+    if (field === 'params' && Array.isArray(entry) && values.includes(null)) {
+      invalid('Route params arrays must contain only strings or numbers.', tourId, stepId)
+    }
+  }
+}
+
+function validateRoute(route: unknown, tourId: string, stepId: string): void {
+  if (typeof route === 'string') {
+    if (!route.trim()) invalid('A route path must not be empty.', tourId, stepId)
+    return
+  }
+  if (!isRecord(route)) invalid('A route must be a path string or route object.', tourId, stepId)
+
+  const hasName = route.name !== undefined
+  const hasPath = route.path !== undefined
+  if (hasName === hasPath) invalid('A route requires either name or path, but not both.', tourId, stepId)
+  if (hasName && typeof route.name !== 'symbol' && !isNonEmptyString(route.name)) {
+    invalid('A route name must be a non-empty string or symbol.', tourId, stepId)
+  }
+  if (hasPath && !isNonEmptyString(route.path)) invalid('A route path must not be empty.', tourId, stepId)
+  if (hasPath && route.params !== undefined) invalid('A path route cannot contain params.', tourId, stepId)
+  if (route.params !== undefined) validateRouteRecordValues(route.params, tourId, stepId, 'params')
+  if (route.query !== undefined) validateRouteRecordValues(route.query, tourId, stepId, 'query')
+  if (route.hash !== undefined && typeof route.hash !== 'string') {
+    invalid('A route hash must be a string.', tourId, stepId)
+  }
+  if (route.replace !== undefined && typeof route.replace !== 'boolean') {
+    invalid('A route replace option must be a boolean.', tourId, stepId)
+  }
+}
+
+function validateScroll(scroll: unknown, tourId: string, stepId: string): void {
+  if (scroll === false) return
+  if (!isRecord(scroll)) invalid('Scroll must be false or a ScrollIntoView options object.', tourId, stepId)
+  if (scroll.behavior !== undefined && scroll.behavior !== 'auto' && scroll.behavior !== 'smooth') {
+    invalid('Scroll behavior must be auto or smooth.', tourId, stepId)
+  }
+  for (const field of ['block', 'inline'] as const) {
+    const value = scroll[field]
+    if (value !== undefined && value !== 'start' && value !== 'center' && value !== 'end' && value !== 'nearest') {
+      invalid(`Scroll ${field} must be start, center, end, or nearest.`, tourId, stepId)
+    }
   }
 }
 
@@ -84,6 +147,8 @@ function validateStep(step: unknown, tourId: string): string {
   if (step.scrollTarget !== undefined && step.scroll === false) {
     invalid('A scroll target cannot be combined with scroll: false.', tourId, stepId)
   }
+  if (step.route !== undefined) validateRoute(step.route, tourId, stepId)
+  if (step.scroll !== undefined) validateScroll(step.scroll, tourId, stepId)
   if (step.when !== undefined && typeof step.when !== 'function') {
     invalid('A step condition must be a function.', tourId, stepId)
   }

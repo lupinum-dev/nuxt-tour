@@ -1,5 +1,6 @@
 import type { ObjectDirective } from 'vue'
 import type { TourTargetRegistry } from '../targets'
+import type { TourTargetId } from '../types'
 
 function targetId(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) {
@@ -8,7 +9,7 @@ function targetId(value: unknown): string {
   return value
 }
 
-export type TourTargetDirective = ObjectDirective<Element, string>
+export type TourTargetDirective = ObjectDirective<Element, TourTargetId>
 
 export function createTourTargetDirective(
   registry: TourTargetRegistry,

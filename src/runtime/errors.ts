@@ -18,7 +18,6 @@ export interface TourErrorContext {
   target?: TourTarget
   route?: TourRoute
   timeout?: number
-  transitionId?: string
   registeredTargets?: readonly string[]
   cause?: unknown
 }

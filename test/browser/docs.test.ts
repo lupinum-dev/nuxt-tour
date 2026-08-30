@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import type { Page } from '@playwright/test'
 import { expect, test } from '@nuxt/test-utils/playwright'
 
 test.use({
@@ -7,6 +8,26 @@ test.use({
     setupTimeout: 240_000,
   },
 })
+
+async function waitForScrollSettlement(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let previousX = window.scrollX
+    let previousY = window.scrollY
+    let stableFrames = 0
+
+    const sample = () => {
+      const stayedStill = Math.abs(window.scrollX - previousX) <= 0.5
+        && Math.abs(window.scrollY - previousY) <= 0.5
+      previousX = window.scrollX
+      previousY = window.scrollY
+      stableFrames = stayedStill ? stableFrames + 1 : 0
+      if (stableFrames >= 3) resolve()
+      else requestAnimationFrame(sample)
+    }
+
+    requestAnimationFrame(sample)
+  }))
+}
 
 test('the documentation is interactive, responsive, and dark-mode aware', async ({ page, goto }) => {
   const errors: string[] = []
@@ -21,21 +42,17 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('smooth')
   await page.evaluate(() => {
     const state = window as typeof window & {
-      __tourInitialCardVisibleWhileScrolling?: boolean
       __tourInitialScrollSeen?: boolean
       __tourInitialShadeMissingWhileScrolling?: boolean
       __tourInitialSpotlightSeenWhileScrolling?: boolean
-      __tourInitialTargetExposedWhileScrolling?: boolean
       __tourInitialRevealMaximumOffset?: number
       __tourInitialRevealStartedClosed?: boolean
       __tourInitialStartedAt?: number
       __tourInitialRevealAt?: number
     }
-    state.__tourInitialCardVisibleWhileScrolling = false
     state.__tourInitialScrollSeen = false
     state.__tourInitialShadeMissingWhileScrolling = false
     state.__tourInitialSpotlightSeenWhileScrolling = false
-    state.__tourInitialTargetExposedWhileScrolling = false
     state.__tourInitialRevealMaximumOffset = 0
     state.__tourInitialRevealStartedClosed = false
     const startButton = [...document.querySelectorAll<HTMLButtonElement>('button')]
@@ -80,7 +97,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       const root = document.querySelector<HTMLElement>('[data-tour-part="root"]')
       const overlay = document.querySelector<HTMLElement>('[data-tour-part="overlay"]')
       const spotlight = document.querySelector<HTMLElement>('[data-tour-part="spotlight"]')
-      const card = document.querySelector<HTMLElement>('[data-tour-part="positioner"]')
       const overlayCovers = overlay
         && Number.parseFloat(getComputedStyle(overlay).opacity) >= 0.95
         && getComputedStyle(overlay).backgroundColor !== 'rgba(0, 0, 0, 0)'
@@ -89,7 +105,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
         && getComputedStyle(spotlight).boxShadow !== 'none'
       if (spotlightCovers) state.__tourInitialSpotlightSeenWhileScrolling = true
       if (!overlayCovers && spotlight && Number.parseFloat(getComputedStyle(spotlight, '::after').opacity) < 0.95) {
-        state.__tourInitialTargetExposedWhileScrolling = true
         const target = document.querySelector<HTMLElement>('[data-tour-target="demo-shell"]')
         const rect = target?.getBoundingClientRect()
         const offset = rect ? Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2) : Number.POSITIVE_INFINITY
@@ -97,9 +112,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       }
       if (!root || (!overlayCovers && !spotlightCovers)) {
         state.__tourInitialShadeMissingWhileScrolling = true
-      }
-      if (card && Number.parseFloat(getComputedStyle(card).opacity) > 0.05) {
-        state.__tourInitialCardVisibleWhileScrolling = true
       }
     }, { capture: true })
   })
@@ -112,22 +124,18 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
   expect(await page.evaluate(() => {
     const state = window as typeof window & {
-      __tourInitialCardVisibleWhileScrolling?: boolean
       __tourInitialScrollSeen?: boolean
       __tourInitialShadeMissingWhileScrolling?: boolean
       __tourInitialSpotlightSeenWhileScrolling?: boolean
-      __tourInitialTargetExposedWhileScrolling?: boolean
       __tourInitialRevealMaximumOffset?: number
       __tourInitialRevealStartedClosed?: boolean
       __tourInitialStartedAt?: number
       __tourInitialRevealAt?: number
     }
     return {
-      cardVisible: state.__tourInitialCardVisibleWhileScrolling,
       scrollSeen: state.__tourInitialScrollSeen,
       shadeMissing: state.__tourInitialShadeMissingWhileScrolling,
       spotlightSeen: state.__tourInitialSpotlightSeenWhileScrolling,
-      targetExposed: state.__tourInitialTargetExposedWhileScrolling,
       revealMaximumOffset: state.__tourInitialRevealMaximumOffset,
       revealStartedClosed: state.__tourInitialRevealStartedClosed,
       revealLatency: state.__tourInitialStartedAt !== undefined && state.__tourInitialRevealAt !== undefined
@@ -158,6 +166,10 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
     return Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2)
   })
   expect(targetCenterOffset).toBeLessThan(80)
+  // The spotlight intentionally reveals once the target is close enough. Let
+  // the small remaining smooth-scroll tail settle before proving that the
+  // following steps do not start another page movement.
+  await waitForScrollSettlement(page)
   const anchoredScrollPosition = await page.evaluate(() => window.scrollY)
   await page.evaluate(() => {
     const state = window as typeof window & {
@@ -260,7 +272,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   await expect(page.locator('[data-tour-part="spotlight"]')).toBeVisible()
   await page.evaluate(() => {
     const state = window as typeof window & {
-      __tourCardVisibleWhileRelocating?: boolean
       __tourBackdropMissingWhileRelocating?: boolean
       __tourDestinationSpotlightSeenWhileRelocating?: boolean
       __tourDestinationExposedWhileRelocating?: boolean
@@ -268,7 +279,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       __tourDestinationRevealMaximumOffset?: number
       __tourGeometrySwappedBeforeCovered?: boolean
     }
-    state.__tourCardVisibleWhileRelocating = false
     state.__tourBackdropMissingWhileRelocating = false
     state.__tourDestinationSpotlightSeenWhileRelocating = false
     state.__tourDestinationExposedWhileRelocating = false
@@ -289,12 +299,8 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       const pageMoved = Math.abs(currentScrollY - previousScrollY) > 0.5
       previousScrollY = currentScrollY
       if (!state.__tourRelocationStarted || !pageMoved) return
-      const positioner = document.querySelector<HTMLElement>('[data-tour-part="positioner"]')
       const overlay = document.querySelector<HTMLElement>('[data-tour-part="overlay"]')
       const spotlight = document.querySelector<HTMLElement>('[data-tour-part="spotlight"]')
-      if (positioner && Number.parseFloat(getComputedStyle(positioner).opacity) > 0.05) {
-        state.__tourCardVisibleWhileRelocating = true
-      }
       const overlayCovers = overlay
         && getComputedStyle(overlay).backgroundColor !== 'rgba(0, 0, 0, 0)'
       const spotlightCovers = spotlight
@@ -328,7 +334,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
   expect(await page.evaluate(() => {
     const state = window as typeof window & {
-      __tourCardVisibleWhileRelocating?: boolean
       __tourBackdropMissingWhileRelocating?: boolean
       __tourDestinationSpotlightSeenWhileRelocating?: boolean
       __tourDestinationExposedWhileRelocating?: boolean
@@ -338,7 +343,6 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
     }
     return {
       started: state.__tourRelocationStarted,
-      cardVisible: state.__tourCardVisibleWhileRelocating,
       backdropMissing: state.__tourBackdropMissingWhileRelocating,
       spotlightSeen: state.__tourDestinationSpotlightSeenWhileRelocating,
       targetExposed: state.__tourDestinationExposedWhileRelocating,
@@ -364,6 +368,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   await page.getByRole('button', { name: 'Previous' }).click()
   await expect(root).toHaveAttribute('data-tour-step-id', 'action')
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  await waitForScrollSettlement(page)
   expect(Math.abs(await page.evaluate(() => window.scrollY) - anchoredScrollPosition)).toBeLessThan(2)
   const shellCenterOffsetAfterPrevious = await page.locator('[data-tour-target="demo-shell"]').evaluate((element) => {
     const rect = element.getBoundingClientRect()

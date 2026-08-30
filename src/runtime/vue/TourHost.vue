@@ -39,9 +39,10 @@ const targetRect = ref<DOMRect | null>(null)
 const positionReady = ref(false)
 let focusTrap: FocusTrap | null = null
 
-const presentation = computed(() => runtime.presentation.value)
-const visualTarget = computed(() => runtime.transitionTarget.value ?? presentation.value?.target ?? null)
-const visualPhase = computed(() => runtime.visualPhase.value)
+const scene = computed(() => runtime.scene.value)
+const presentation = computed(() => scene.value.phase === 'hidden' ? null : scene.value.presentation)
+const visualTarget = computed(() => scene.value.phase === 'hidden' ? null : scene.value.target)
+const visualPhase = computed(() => scene.value.phase)
 const relocating = computed(() => visualPhase.value === 'moving')
 const controller = computed<TourController | null>(() => {
   const current = presentation.value
@@ -161,8 +162,7 @@ function activateFocusTrap(): void {
   const tabbableOptions = {
     // Include a target that is itself interactive, such as a button or link.
     includeContainer: true,
-    // DOM emulators have no layout engine; real browsers use full visibility checks.
-    displayCheck: navigator.userAgent.includes('HappyDOM') ? 'none' as const : 'full' as const,
+    displayCheck: 'full' as const,
   }
   focusTrap = createFocusTrap(containers, {
     escapeDeactivates: false,
@@ -199,6 +199,35 @@ watch(
     if (visualTarget.value !== target) return
     updateTargetRect(target)
     if (root.value) onCleanup(autoUpdate(target, root.value, () => updateTargetRect(target)))
+  },
+  { flush: 'post' },
+)
+
+async function waitForCoverAnimations(): Promise<void> {
+  await nextTick()
+  const elements = [floating.value, root.value?.querySelector<HTMLElement>('[data-tour-part="spotlight"]')]
+    .filter((element): element is HTMLElement => element !== null && element !== undefined)
+    .filter(element => typeof element.getAnimations === 'function')
+  if (elements.length === 0) return
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  const animations = elements
+    .flatMap(element => element.getAnimations())
+    // Consumer styling must not be able to deadlock a tour with an unrelated
+    // infinite animation on one of the host elements.
+    .filter(animation => Number.isFinite(Number(animation.effect?.getComputedTiming().endTime)))
+  await Promise.allSettled(animations.map(animation => animation.finished))
+}
+
+watch(
+  scene,
+  async (current) => {
+    if (current.phase !== 'moving') return
+    const transitionId = current.presentation.transitionId
+    await waitForCoverAnimations()
+    const latest = scene.value
+    if (latest.phase === 'moving' && latest.presentation.transitionId === transitionId) {
+      runtime.covered(transitionId)
+    }
   },
   { flush: 'post' },
 )
@@ -244,7 +273,8 @@ watch(
       positionReady.value = true
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
-      await runtime.reveal(current.transitionId, current.signal)
+      runtime.reveal(current.transitionId)
+      await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
       activateFocusTrap()
       if (interaction.value === 'page') {

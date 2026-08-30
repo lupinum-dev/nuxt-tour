@@ -15,6 +15,9 @@ import { layeredTourSources, registryTypesTemplate, runtimeRegistryTemplate } fr
 import { defaultTourRuntimeOptions, normalizeTourRuntimeOptions } from './runtime/options'
 import type { TourMissingTarget } from './runtime/types'
 
+export { TourError } from './runtime/errors'
+export type { TourErrorCode, TourErrorContext } from './runtime/errors'
+
 export type {
   TourCardSlotProps,
   TourController,

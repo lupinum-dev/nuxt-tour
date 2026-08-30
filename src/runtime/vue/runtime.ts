@@ -1,10 +1,11 @@
-import { nextTick, shallowReadonly, shallowRef } from 'vue'
-import type { ShallowRef } from 'vue'
+import { computed, nextTick, shallowReadonly, shallowRef } from 'vue'
+import type { ComputedRef, ShallowRef } from 'vue'
 import { TourRuntime } from '../controller'
 import { TourError } from '../errors'
 import type { TourRegistry } from '@lupinum/nuxt-tour/registry'
 import type { TourRouterAdapter } from '../router'
-import { scrollTourTarget, TourTargetRegistry } from '../targets'
+import { scrollTourTarget } from '../scroll'
+import { TourTargetRegistry } from '../targets'
 import type {
   MaybePromise,
   TourController,
@@ -14,35 +15,49 @@ import type {
   TourStepId,
 } from '../types'
 
-interface PendingPresentation {
+interface PendingVisualStep {
   transitionId: string
   resolve: () => void
   reject: (error: unknown) => void
   stopAbort: () => void
 }
 
-type TourVisualPhase = 'hidden' | 'covering' | 'moving' | 'revealing' | 'active'
-
-const visualTiming = {
-  cover: 70,
-  reveal: 150,
-  reducedCover: 0,
-  reducedReveal: 120,
-} as const
+export type TourScene
+  = | { readonly phase: 'hidden' }
+    | {
+      readonly phase: 'covering'
+      readonly presentation: TourPresentation<Element> | null
+      readonly target: Element | null
+    }
+    | {
+      readonly phase: 'moving'
+      readonly presentation: TourPresentation<Element>
+      readonly target: Element | null
+    }
+    | {
+      readonly phase: 'revealing' | 'active'
+      readonly presentation: TourPresentation<Element>
+      readonly target: Element | null
+    }
 
 function abortError(): Error {
   return new DOMException('The tour transition was aborted.', 'AbortError')
 }
 
+function reportError(error: unknown): void {
+  if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
+  else console.error('[nuxt-tour] Failed to cancel the active tour.', error)
+}
+
 export class TourVueRuntime {
   readonly targets = new TourTargetRegistry()
-  readonly presentation: Readonly<ShallowRef<TourPresentation<Element> | null>>
-  readonly transitionTarget: Readonly<ShallowRef<Element | null>>
-  readonly visualPhase: Readonly<ShallowRef<TourVisualPhase>>
+  readonly scene: Readonly<ShallowRef<TourScene>>
+  readonly presentation: ComputedRef<TourPresentation<Element> | null>
   readonly #controller: TourRuntime<Element>
-  readonly #visualPhase: ShallowRef<TourVisualPhase>
+  readonly #scene: ShallowRef<TourScene>
   #hostCount = 0
-  #pendingPresentation: PendingPresentation | null = null
+  #pendingPresentation: PendingVisualStep | null = null
+  #pendingCover: PendingVisualStep | null = null
   #returnFocus: HTMLElement | null = null
   #stopRouter: (() => void) | undefined
 
@@ -52,28 +67,53 @@ export class TourVueRuntime {
     router?: TourRouterAdapter,
     runWithContext?: <Value>(callback: () => MaybePromise<Value>) => MaybePromise<Value>,
   ) {
-    const presentation = shallowRef<TourPresentation<Element> | null>(null)
-    const transitionTarget = shallowRef<Element | null>(null)
-    const visualPhase = shallowRef<TourVisualPhase>('hidden')
-    this.presentation = shallowReadonly(presentation)
-    this.transitionTarget = shallowReadonly(transitionTarget)
-    this.visualPhase = shallowReadonly(visualPhase)
-    this.#visualPhase = visualPhase
+    const scene = shallowRef<TourScene>({ phase: 'hidden' })
+    this.scene = shallowReadonly(scene)
+    this.#scene = scene
+    this.presentation = computed(() => (
+      scene.value.phase === 'hidden' ? null : scene.value.presentation
+    ))
+
+    const waitForCover = (transitionId: string, signal: AbortSignal): Promise<void> => (
+      new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          if (this.#pendingCover?.transitionId === transitionId) this.#pendingCover = null
+          reject(abortError())
+        }
+        this.#pendingCover = {
+          transitionId,
+          resolve,
+          reject,
+          stopAbort: () => signal.removeEventListener('abort', abort),
+        }
+        if (signal.aborted) abort()
+        else signal.addEventListener('abort', abort, { once: true })
+      })
+    )
 
     const coverCurrent = async (signal: AbortSignal) => {
-      let waitForCover = false
-      if (presentation.value && (visualPhase.value === 'active' || visualPhase.value === 'revealing')) {
-        visualPhase.value = 'moving'
-        waitForCover = true
+      const current = scene.value
+      if (current.phase !== 'active' && current.phase !== 'revealing') {
+        await nextTick()
+        if (signal.aborted) throw abortError()
+        return
+      }
+
+      const covered = waitForCover(current.presentation.transitionId, signal)
+      scene.value = {
+        phase: 'moving',
+        presentation: current.presentation,
+        target: current.target,
+      }
+      await covered
+    }
+
+    const setTransitionTarget = async (target: Element) => {
+      const current = scene.value
+      if (current.phase === 'moving' || current.phase === 'covering') {
+        scene.value = { ...current, target }
       }
       await nextTick()
-      if (signal.aborted) throw abortError()
-      if (!waitForCover) return
-
-      const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-      await waitForVisualTransition(testableDuration(
-        reducedMotion ? visualTiming.reducedCover : visualTiming.cover,
-      ), signal)
     }
 
     this.#controller = new TourRuntime(definitions, {
@@ -82,13 +122,12 @@ export class TourVueRuntime {
           throw new TourError('HOST_NOT_FOUND', 'TourHost must be mounted before a tour starts.', {
             tourId: context.tourId,
             stepId: context.stepId,
-            transitionId: context.transitionId,
           })
         }
         this.#returnFocus = typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null
-        visualPhase.value = 'covering'
+        scene.value = { phase: 'covering', presentation: null, target: null }
         await nextTick()
         if (context.signal.aborted) throw abortError()
       },
@@ -101,34 +140,21 @@ export class TourVueRuntime {
         : undefined,
       resolveTarget: (target, resolveOptions) => this.targets.wait(target, resolveOptions),
       scroll: async (target, scrollOptions, signal, scrollTarget) => {
-        const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-        const animateScroll = !reducedMotion && !globalThis.navigator?.userAgent.includes('HappyDOM')
-        try {
-          // Begin scrolling at once, but retain the current spotlight geometry
-          // until its opening is fully covered. Swapping the rectangle while
-          // that cover is translucent produces a one-frame flash.
-          await Promise.all([
-            coverCurrent(signal).then(async () => {
-              transitionTarget.value = target
-              await nextTick()
-            }),
-            scrollTourTarget(scrollTarget ?? target, {
-              ...scrollOptions,
-              behavior: animateScroll
-                ? (scrollOptions.behavior ?? 'smooth')
-                : ('instant' as ScrollBehavior),
-            }, signal),
-          ])
-        }
-        catch (error) {
-          visualPhase.value = 'moving'
-          throw error
-        }
+        await Promise.all([
+          coverCurrent(signal).then(() => setTransitionTarget(target)),
+          scrollTourTarget(scrollTarget ?? target, {
+            ...scrollOptions,
+            behavior: scrollOptions.behavior ?? 'smooth',
+          }, signal),
+        ])
       },
       show: async (nextPresentation) => {
         await coverCurrent(nextPresentation.signal)
-        presentation.value = nextPresentation
-        transitionTarget.value = null
+        scene.value = {
+          phase: 'covering',
+          presentation: nextPresentation,
+          target: nextPresentation.target,
+        }
         await new Promise<void>((resolve, reject) => {
           const abort = () => {
             if (this.#pendingPresentation?.transitionId === nextPresentation.transitionId) {
@@ -147,14 +173,10 @@ export class TourVueRuntime {
         })
       },
       hide: () => {
-        visualPhase.value = 'hidden'
-        transitionTarget.value = null
-        presentation.value = null
+        scene.value = { phase: 'hidden' }
       },
       end: () => {
-        visualPhase.value = 'hidden'
-        transitionTarget.value = null
-        presentation.value = null
+        scene.value = { phase: 'hidden' }
         const returnFocus = this.#returnFocus
         this.#returnFocus = null
         if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
@@ -200,36 +222,42 @@ export class TourVueRuntime {
     }
     return () => {
       this.#hostCount = Math.max(0, this.#hostCount - 1)
-      if (this.#hostCount === 0 && this.#pendingPresentation) {
-        this.#pendingPresentation.stopAbort()
-        this.#pendingPresentation.reject(new TourError(
-          'HOST_NOT_FOUND',
-          'TourHost was removed before the step became ready.',
-          { transitionId: this.#pendingPresentation.transitionId },
-        ))
-        this.#pendingPresentation = null
-      }
       if (this.#hostCount === 0) {
+        this.#rejectPendingVisualStep(this.#pendingCover, 'TourHost was removed before the current spotlight closed.')
+        this.#pendingCover = null
+        this.#rejectPendingVisualStep(this.#pendingPresentation, 'TourHost was removed before the step became ready.')
+        this.#pendingPresentation = null
         void this.#controller.cancelActive('host-removed').catch(reportError)
       }
     }
   }
 
+  covered(transitionId: string): void {
+    if (this.#pendingCover?.transitionId !== transitionId) return
+    this.#pendingCover.stopAbort()
+    this.#pendingCover.resolve()
+    this.#pendingCover = null
+  }
+
+  reveal(transitionId: string): void {
+    const current = this.#scene.value
+    if (current.phase !== 'covering' || current.presentation?.transitionId !== transitionId) return
+    this.#scene.value = {
+      phase: 'revealing',
+      presentation: current.presentation,
+      target: current.target,
+    }
+  }
+
   ready(transitionId: string): void {
     if (this.#pendingPresentation?.transitionId !== transitionId) return
+    const current = this.#scene.value
+    if (current.phase === 'revealing' && current.presentation.transitionId === transitionId) {
+      this.#scene.value = { ...current, phase: 'active' }
+    }
     this.#pendingPresentation.stopAbort()
     this.#pendingPresentation.resolve()
     this.#pendingPresentation = null
-  }
-
-  async reveal(transitionId: string, signal: AbortSignal): Promise<void> {
-    if (this.presentation.value?.transitionId !== transitionId) return
-    const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-    this.#visualPhase.value = 'revealing'
-    await waitForVisualTransition(testableDuration(
-      reducedMotion ? visualTiming.reducedReveal : visualTiming.reveal,
-    ), signal)
-    if (this.presentation.value?.transitionId === transitionId) this.#visualPhase.value = 'active'
   }
 
   fail(transitionId: string, error: unknown): void {
@@ -238,35 +266,10 @@ export class TourVueRuntime {
     this.#pendingPresentation.reject(error)
     this.#pendingPresentation = null
   }
-}
 
-async function waitForVisualTransition(duration: number, signal: AbortSignal): Promise<void> {
-  await nextTick()
-  if (signal.aborted) throw abortError()
-
-  if (duration === 0) return
-
-  await new Promise<void>((resolve, reject) => {
-    const finish = () => {
-      clearTimeout(timer)
-      signal.removeEventListener('abort', abort)
-      resolve()
-    }
-    const abort = () => {
-      clearTimeout(timer)
-      reject(abortError())
-    }
-    const timer = globalThis.setTimeout(finish, duration)
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) abort()
-  })
-}
-
-function testableDuration(duration: number): number {
-  return globalThis.navigator?.userAgent.includes('HappyDOM') ? 0 : duration
-}
-
-function reportError(error: unknown): void {
-  if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
-  else console.error('[nuxt-tour] Failed to cancel the active tour.', error)
+  #rejectPendingVisualStep(pending: PendingVisualStep | null, message: string): void {
+    if (!pending) return
+    pending.stopAbort()
+    pending.reject(new TourError('HOST_NOT_FOUND', message))
+  }
 }
