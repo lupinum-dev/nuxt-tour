@@ -1,6 +1,6 @@
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 
@@ -73,10 +73,12 @@ function readArgument(name) {
 }
 
 function run(command, arguments_, fallbackMessage) {
-  const executable = process.platform === 'win32' && (command === 'npm' || command === 'npx')
-    ? `${command}.cmd`
-    : command
-  const result = spawnSync(executable, arguments_, {
+  const npmCommand = command === 'npm' || command === 'npx'
+  const executable = process.platform === 'win32' && npmCommand ? process.execPath : command
+  const executableArguments = process.platform === 'win32' && npmCommand
+    ? [join(dirname(process.execPath), 'node_modules', 'npm', 'bin', `${command}-cli.js`), ...arguments_]
+    : arguments_
+  const result = spawnSync(executable, executableArguments, {
     cwd: consumer,
     encoding: 'utf8',
     env: { ...process.env, npm_config_cache: process.env.npm_config_cache ?? resolve('.npm-cache') },
