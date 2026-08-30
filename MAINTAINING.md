@@ -1,14 +1,15 @@
 # Maintaining Nuxt Tour
 
-## Pre-release contract
+## Public contract
 
-The package is not published. Change the design specification before or with a
-public API implementation. State the user journey and acceptance criterion for
-each new option, export, event, or state value. Prefer a hard cutover while no
-users or persisted data depend on the old design.
+The package is public. Treat every documented API as a compatibility contract.
+Change the design specification before or with a public API implementation.
+State the user journey and acceptance criterion for each new option, export,
+event, or state value. Prefer additive changes. For a breaking change, document
+the migration and release it under the correct semantic version.
 
-Do not present a planned API as implemented behavior. Keep the README release
-notice until the quick-start journey works from the packed package.
+Do not present a planned API as implemented behavior. Verify examples against
+the packed package before release.
 
 ## Quick fix
 
@@ -33,13 +34,13 @@ Vercel uses `docs/` as the Root Directory. Enable source files outside the Root
 Directory because the documentation build needs this workspace package. Keep
 `vercel.json` in `docs/`.
 
-## First npm release
+## First npm release (completed for `v0.1.0`)
 
 The package must exist before npm can bind a trusted publisher. Download the exact tarball from the successful main CI release-candidate artifact and verify its SHA-256. Publish that same file once with 2FA, `--access public`, the correct dist-tag, and `--ignore-scripts`. Then bind `publish.yml` and environment `npm` as the trusted publisher. Dispatch `publish.yml` for the same version. It derives bootstrap state only when the registry bytes match and this is the sole published version. It records the exception in the GitHub release. Never rebuild the artifact or provide a bootstrap switch.
 
 ## Normal release
 
-Update `CHANGELOG.md` with `pnpm release:prepare` in a focused pull request. Merge after `pnpm release:verify` and CI pass. Dispatch `publish.yml` from current `main` with the reviewed package version. The workflow derives every other value from exact successful `main` CI. It requests npm approval only when publication is required and repairs the tag or GitHub release separately.
+Update `CHANGELOG.md` with `pnpm release:prepare` in a focused pull request. Merge after `pnpm release:verify` and CI pass. Dispatch `publish.yml` from current `main` with the reviewed package version. On a first attempt, the workflow requires current `main`. A rerun can use the original dispatch commit only while it remains an ancestor of `main`. The workflow derives every other value from the exact successful `main` CI artifact. It requests npm approval only when publication is required and repairs the tag or GitHub release separately.
 
 ## Rollback
 

@@ -3,14 +3,13 @@
 ## Architecture
 
 - `src/module.ts` is the Nuxt module entry point.
-- `src/runtime/` will own the application-scoped Vue runtime. Keep orchestration
+- `src/runtime/` owns the application-scoped Vue runtime. Keep orchestration
   separate from rendering.
 - `test/` verifies module installation, public behavior, and failure boundaries.
 - `playground/` is the smallest interactive Nuxt consumer.
-- `docs/content/docs/2.design/` is the source of truth for the proposed public
-  contract until implementation and public documentation replace it.
-- `docs/content/docs/3.implementation/` owns the staged implementation plan.
-- `docs/` becomes a packed-package consumer before the first release.
+- `docs/content/docs/3.design/` records the public contract and its design decisions.
+- `docs/content/docs/4.implementation/` records the implementation status.
+- `docs/` is a packed-package consumer and the public documentation site.
 - `scripts/` owns inert package certification. It does not publish.
 
 ## Commands
