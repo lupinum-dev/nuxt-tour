@@ -21,10 +21,10 @@ const distTag = packageJson.version.includes('-') ? 'next' : 'latest'
 const source = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' })
 const sourceSha = source.stdout.trim()
 if (source.status !== 0 || !/^[0-9a-f]{40}$/.test(sourceSha)) throw new Error(source.stderr || 'Cannot resolve the source commit.')
-const expectedSourceSha = process.env.GITHUB_SHA?.trim().toLowerCase()
-if (expectedSourceSha && !/^[0-9a-f]{40}$/.test(expectedSourceSha)) throw new Error('GITHUB_SHA is not a full commit SHA.')
+const expectedSourceSha = (process.env.RELEASE_SOURCE_SHA ?? process.env.GITHUB_SHA)?.trim().toLowerCase()
+if (expectedSourceSha && !/^[0-9a-f]{40}$/.test(expectedSourceSha)) throw new Error('The expected source is not a full commit SHA.')
 if (expectedSourceSha && sourceSha !== expectedSourceSha) {
-  throw new Error(`The release source ${sourceSha} differs from GITHUB_SHA ${expectedSourceSha}.`)
+  throw new Error(`The release source ${sourceSha} differs from the expected source ${expectedSourceSha}.`)
 }
 const changelog = await readFile('CHANGELOG.md', 'utf8')
 const escapedVersion = packageJson.version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
