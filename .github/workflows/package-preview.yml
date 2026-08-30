@@ -36,6 +36,7 @@ jobs:
         with:
           name: package-preview-${{ github.run_id }}
           path: .preview-artifacts
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
       - id: publish
