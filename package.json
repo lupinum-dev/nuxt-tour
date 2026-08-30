@@ -62,7 +62,7 @@
   },
   "scripts": {
     "audit:all": "pnpm audit",
-    "build": "nuxt-module-build build",
+    "build": "nuxt-module-build prepare && nuxt-module-build build",
     "dev": "pnpm dev:prepare && nuxt dev playground",
     "dev:build": "pnpm dev:prepare && nuxt build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
