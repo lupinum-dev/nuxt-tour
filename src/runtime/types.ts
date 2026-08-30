@@ -1,5 +1,7 @@
 import type { Component, Ref } from 'vue'
 
+export type { TourRegistry, TourTargetId } from '@lupinum/nuxt-tour/registry'
+
 export type MaybePromise<T> = T | Promise<T>
 
 export type TourPlacement
@@ -17,55 +19,66 @@ export type TourPlacement
     | 'left-end'
 
 export type TourMissingTarget = 'error' | 'skip'
-export type TourInteraction = 'blocked' | 'target' | 'allowed'
-export type TourStatus = 'idle' | 'active'
+export type TourInteraction = 'modal' | 'target' | 'page'
+
+export type TourRouteValue = string | number | null
+export type TourRouteParamsValue = TourRouteValue | readonly (string | number)[]
+export type TourRouteQueryValue = TourRouteValue | readonly TourRouteValue[]
 
 export type TourRoute
   = | string
-    | {
-      name?: string | symbol
-      path?: string
-      params?: Record<string, unknown>
-      query?: Record<string, unknown>
+    | Readonly<{
+      name: string | symbol
+      path?: never
+      params?: Readonly<Record<string, TourRouteParamsValue>>
+      query?: Readonly<Record<string, TourRouteQueryValue>>
       hash?: string
       replace?: boolean
-      [key: string]: unknown
-    }
+    }>
+    | Readonly<{
+      path: string
+      name?: never
+      params?: never
+      query?: Readonly<Record<string, TourRouteQueryValue>>
+      hash?: string
+      replace?: boolean
+    }>
 
 interface TourTargetOptions {
-  timeout?: number
-  missing?: TourMissingTarget
+  readonly timeout?: number
+  readonly missing?: TourMissingTarget
 }
 
 export type TourTarget
   = | string
-    | ({ id: string, selector?: never } & TourTargetOptions)
-    | ({ selector: string, id?: never } & TourTargetOptions)
+    | ({ readonly id: string, readonly selector?: never } & TourTargetOptions)
+    | ({ readonly selector: string, readonly id?: never } & TourTargetOptions)
 
 export interface TourStepContext {
-  signal: AbortSignal
-  tourId: string
-  stepId: string
-  transitionId: string
+  readonly signal: AbortSignal
+  readonly tourId: string
+  readonly stepId: string
+  readonly transitionId: string
 }
 
 interface TourStepBase {
-  id: string
-  target?: TourTarget
-  route?: TourRoute
-  content: string | Component
-  placement?: TourPlacement
-  offset?: number
-  scroll?: false | ScrollIntoViewOptions
-  interaction?: TourInteraction
-  when?: (context: TourStepContext) => MaybePromise<boolean>
+  readonly id: string
+  readonly target?: TourTarget
+  readonly scrollTarget?: TourTarget
+  readonly route?: TourRoute
+  readonly content: string | Component
+  readonly placement?: TourPlacement
+  readonly offset?: number
+  readonly scroll?: false | Readonly<ScrollIntoViewOptions>
+  readonly interaction?: TourInteraction
+  readonly when?: (context: TourStepContext) => MaybePromise<boolean>
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- prepare may omit a cleanup function.
-  prepare?: (context: TourStepContext) => MaybePromise<void | (() => void)>
+  readonly prepare?: (context: TourStepContext) => MaybePromise<void | (() => void)>
 }
 
 type NamedTourStep
-  = | { title: string, ariaLabel?: string }
-    | { title?: undefined, ariaLabel: string }
+  = | { readonly title: string, readonly ariaLabel?: string }
+    | { readonly title?: undefined, readonly ariaLabel: string }
 
 export type TourStep = TourStepBase & NamedTourStep
 export type TourSteps = readonly [TourStep, ...TourStep[]]
@@ -74,16 +87,16 @@ export interface TourDefinition<
   Id extends string = string,
   Steps extends TourSteps = TourSteps,
 > {
-  id: Id
-  steps: Steps
+  readonly id: Id
+  readonly steps: Steps
 }
 
 export type TourId<Definition extends TourDefinition> = Definition['id']
 export type TourStepId<Definition extends TourDefinition> = Definition['steps'][number]['id']
 
 export interface TourStartOptions<StepId extends string = string> {
-  at?: StepId
-  replace?: boolean
+  readonly at?: StepId
+  readonly replace?: boolean
 }
 
 export type TourEndReason = 'completed' | 'skipped' | 'cancelled'
@@ -93,13 +106,13 @@ interface TourEventBase {
   transitionId: string
 }
 
-export interface TourEventMap {
+export interface TourEventMap<StepId extends string = string> {
   'tour:start': TourEventBase
-  'step:before': TourEventBase & { stepId: string, index: number }
-  'step:show': TourEventBase & { stepId: string, index: number }
-  'step:leave': TourEventBase & { stepId: string, index: number }
+  'step:before': TourEventBase & { stepId: StepId, index: number }
+  'step:show': TourEventBase & { stepId: StepId, index: number }
+  'step:leave': TourEventBase & { stepId: StepId, index: number }
   'target:missing': TourEventBase & {
-    stepId: string
+    stepId: StepId
     index: number
     target: TourTarget
     timeout: number
@@ -110,13 +123,13 @@ export interface TourEventMap {
 }
 
 export type TourEventType = keyof TourEventMap
-export type TourEvent = {
-  [Type in TourEventType]: TourEventMap[Type] & { type: Type }
+export type TourEvent<StepId extends string = string> = {
+  [Type in TourEventType]: TourEventMap<StepId>[Type] & { type: Type }
 }[TourEventType]
 
 export interface TourController<StepId extends string = string> {
-  status: Readonly<Ref<TourStatus>>
-  currentStep: Readonly<Ref<TourStep | null>>
+  isActive: Readonly<Ref<boolean>>
+  currentStep: Readonly<Ref<(TourStep & { readonly id: StepId }) | null>>
   currentStepId: Readonly<Ref<StepId | null>>
   index: Readonly<Ref<number>>
   total: Readonly<Ref<number>>
@@ -130,20 +143,16 @@ export interface TourController<StepId extends string = string> {
   on: {
     <Type extends TourEventType>(
       type: Type,
-      handler: (event: TourEventMap[Type] & { type: Type }) => void,
+      handler: (event: TourEventMap<StepId>[Type] & { type: Type }) => void,
     ): () => void
-    (type: '*', handler: (event: TourEvent) => void): () => void
+    (type: '*', handler: (event: TourEvent<StepId>) => void): () => void
   }
 }
 
 export interface TourRuntimeOptions {
-  targetTimeout?: number
-  missingTarget?: TourMissingTarget
+  readonly targetTimeout?: number
+  readonly missingTarget?: TourMissingTarget
 }
-
-/** Nuxt augments this interface with definitions discovered in app/tours. */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- declaration merging requires an interface.
-export interface TourRegistry {}
 
 export interface TourLabels {
   previous: string
@@ -151,14 +160,18 @@ export interface TourLabels {
   finish: string
   skip: string
   close: string
+  pending: string
   progress: (current: number, total: number) => string
 }
 
 export interface TourCardSlotProps {
-  step: TourStep
-  controller: TourController
-  index: number
-  total: number
+  readonly step: TourStep
+  readonly controller: TourController
+  readonly index: number
+  readonly total: number
+  readonly titleId?: string
+  readonly descriptionId: string
+  readonly pending: boolean
 }
 
 export interface TourPresentation<ResolvedTarget = unknown> {
@@ -171,6 +184,8 @@ export interface TourPresentation<ResolvedTarget = unknown> {
 }
 
 export interface TourRuntimeAdapter<ResolvedTarget = unknown> {
+  begin?: (context: TourStepContext) => MaybePromise<void>
+  runWithContext?: <Value>(callback: () => MaybePromise<Value>) => MaybePromise<Value>
   navigate?: (route: TourRoute, signal: AbortSignal) => Promise<void>
   resolveTarget: (
     target: TourTarget,
@@ -178,8 +193,9 @@ export interface TourRuntimeAdapter<ResolvedTarget = unknown> {
   ) => Promise<ResolvedTarget | null>
   scroll?: (
     target: ResolvedTarget,
-    options: ScrollIntoViewOptions,
+    options: Readonly<ScrollIntoViewOptions>,
     signal: AbortSignal,
+    scrollTarget?: ResolvedTarget,
   ) => MaybePromise<void>
   show: (presentation: TourPresentation<ResolvedTarget>) => Promise<void>
   hide?: (presentation: Omit<TourPresentation<ResolvedTarget>, 'signal'>) => MaybePromise<void>

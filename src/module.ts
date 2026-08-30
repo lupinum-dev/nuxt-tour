@@ -1,4 +1,3 @@
-import { resolve, sep } from 'node:path'
 import {
   addComponent,
   addImports,
@@ -7,11 +6,36 @@ import {
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
+  getLayerDirectories,
   resolveFiles,
   updateTemplates,
 } from '@nuxt/kit'
-import { registryTypesTemplate, runtimeRegistryTemplate, tourSources } from './discovery'
+import { isAbsolute, normalize, resolve } from 'pathe'
+import { layeredTourSources, registryTypesTemplate, runtimeRegistryTemplate } from './discovery'
+import { defaultTourRuntimeOptions, normalizeTourRuntimeOptions } from './runtime/options'
 import type { TourMissingTarget } from './runtime/types'
+
+export type {
+  TourCardSlotProps,
+  TourController,
+  TourDefinition,
+  TourEndReason,
+  TourEvent,
+  TourEventMap,
+  TourEventType,
+  TourInteraction,
+  TourLabels,
+  TourMissingTarget,
+  TourPlacement,
+  TourRoute,
+  TourRuntimeOptions,
+  TourStartOptions,
+  TourStep,
+  TourStepContext,
+  TourStepId,
+  TourTarget,
+  TourTargetId,
+} from './runtime/types'
 
 export interface ModuleOptions {
   /** How long a step waits for a late-rendered target. @default 5000 */
@@ -26,38 +50,37 @@ export default defineNuxtModule<ModuleOptions>({
   meta: {
     name: '@lupinum/nuxt-tour',
     configKey: 'nuxtTour',
+    docs: 'https://nuxt-tour.lupinum.com',
     compatibility: {
       nuxt: '^4.0.0',
     },
   },
   defaults: {
-    targetTimeout: 5000,
-    missingTarget: 'error',
+    targetTimeout: defaultTourRuntimeOptions.targetTimeout,
+    missingTarget: defaultTourRuntimeOptions.missingTarget,
     css: 'all',
   },
   async setup(options, nuxt) {
-    if (typeof options.targetTimeout !== 'number'
-      || !Number.isFinite(options.targetTimeout)
-      || options.targetTimeout < 0) {
-      throw new TypeError('[nuxt-tour] targetTimeout must be a finite, non-negative number.')
-    }
-    if (options.missingTarget !== 'error' && options.missingTarget !== 'skip') {
-      throw new TypeError('[nuxt-tour] missingTarget must be error or skip.')
-    }
+    const runtimeOptions = normalizeTourRuntimeOptions(options)
     if (options.css !== 'all' && options.css !== 'structure' && options.css !== false) {
       throw new TypeError('[nuxt-tour] css must be all, structure, or false.')
     }
 
     const resolver = createResolver(import.meta.url)
-    const toursDirectory = resolve(nuxt.options.srcDir, nuxt.options.dir.app, 'tours')
+    nuxt.options.alias['@lupinum/nuxt-tour/registry'] = resolver.resolve('./runtime/registry')
+    const toursDirectories = getLayerDirectories(nuxt)
+      .map(layer => resolve(layer.app, 'tours'))
     const registryFilename = 'nuxt-tour/registry.mjs'
     const typesFilename = 'types/nuxt-tour.d.ts'
 
-    const loadSources = async () => tourSources(
-      toursDirectory,
-      (await resolveFiles(toursDirectory, ['**/*.{ts,mts,js,mjs}']))
-        .filter(path => !/\.d\.m?ts$/u.test(path)),
-    )
+    const extensionPattern = `**/*{${nuxt.options.extensions.join(',')}}`
+    const loadSources = async () => layeredTourSources(await Promise.all(
+      toursDirectories.map(async directory => ({
+        directory,
+        files: (await resolveFiles(directory, [extensionPattern]))
+          .filter(path => !/\.d\.[cm]?[jt]s$/u.test(path)),
+      })),
+    ))
 
     addTemplate({
       filename: registryFilename,
@@ -75,29 +98,26 @@ export default defineNuxtModule<ModuleOptions>({
         `import { createNuxtTourPlugin } from ${JSON.stringify(resolver.resolve('./runtime/nuxt-plugin'))}`,
         `import { tours } from '#build/${registryFilename}'`,
         '',
-        `export default createNuxtTourPlugin(tours, ${JSON.stringify({
-          targetTimeout: options.targetTimeout,
-          missingTarget: options.missingTarget,
+        `export default createNuxtTourPlugin(tours, ${JSON.stringify(runtimeOptions)}, ${JSON.stringify({
+          pageTransition: Boolean(nuxt.options.app.pageTransition),
         })})`,
         '',
       ].join('\n'),
     })
 
-    for (const name of ['defineTour', 'useTour', 'useTourTarget'] as const) {
-      addImports({ name, from: resolver.resolve('./runtime/vue') })
-    }
+    addImports({ name: 'defineTour', from: resolver.resolve('./runtime/vue') })
+    addImports({ name: 'useNuxtTour', from: resolver.resolve('./runtime/use-nuxt-tour') })
+    addImports({ name: 'useTourTarget', from: resolver.resolve('./runtime/vue') })
 
     addComponent({ name: 'TourHost', filePath: resolver.resolve('./runtime/vue/TourHost.vue') })
-    addComponent({ name: 'TourContent', filePath: resolver.resolve('./runtime/vue/TourContent') })
 
     if (options.css === 'all') nuxt.options.css.push(resolver.resolve('./runtime/style.css'))
     if (options.css === 'structure') nuxt.options.css.push(resolver.resolve('./runtime/structure.css'))
 
     nuxt.hook('builder:watch', async (event, path) => {
       if (event !== 'add' && event !== 'unlink') return
-      const absolutePath = resolve(nuxt.options.srcDir, path)
-      const directoryPrefix = toursDirectory.endsWith(sep) ? toursDirectory : `${toursDirectory}${sep}`
-      if (!absolutePath.startsWith(directoryPrefix)) return
+      const absolutePath = normalize(isAbsolute(path) ? path : resolve(nuxt.options.srcDir, path))
+      if (!toursDirectories.some(directory => absolutePath.startsWith(`${normalize(directory)}/`))) return
       await updateTemplates({ filter: template => (
         template.filename === registryFilename || template.filename === typesFilename
       ) })

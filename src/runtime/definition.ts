@@ -70,13 +70,19 @@ function validateStep(step: unknown, tourId: string): string {
     invalid('A step offset must be a finite, non-negative number.', tourId, stepId)
   }
   if (step.interaction !== undefined
-    && step.interaction !== 'blocked'
+    && step.interaction !== 'modal'
     && step.interaction !== 'target'
-    && step.interaction !== 'allowed') {
+    && step.interaction !== 'page') {
     invalid('A step interaction mode is invalid.', tourId, stepId)
   }
   if (step.interaction === 'target' && step.target === undefined) {
     invalid('Target interaction requires a target.', tourId, stepId)
+  }
+  if (step.scrollTarget !== undefined && step.target === undefined) {
+    invalid('A scroll target requires a spotlight target.', tourId, stepId)
+  }
+  if (step.scrollTarget !== undefined && step.scroll === false) {
+    invalid('A scroll target cannot be combined with scroll: false.', tourId, stepId)
   }
   if (step.when !== undefined && typeof step.when !== 'function') {
     invalid('A step condition must be a function.', tourId, stepId)
@@ -85,6 +91,7 @@ function validateStep(step: unknown, tourId: string): string {
     invalid('Step preparation must be a function.', tourId, stepId)
   }
   if (step.target !== undefined) validateTarget(step.target, tourId, stepId)
+  if (step.scrollTarget !== undefined) validateTarget(step.scrollTarget, tourId, stepId)
   return stepId
 }
 

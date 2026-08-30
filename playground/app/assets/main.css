@@ -132,6 +132,27 @@ nav a.router-link-exact-active {
   justify-content: space-between;
 }
 
+.example-spacer {
+  min-height: 70vh;
+}
+
+.example-insights {
+  min-height: 60vh;
+  padding: clamp(3rem, 8vw, 7rem);
+  border: 1px solid var(--page-border);
+  border-radius: 2rem;
+  margin-block-end: 12vh;
+  background: var(--page-surface);
+}
+
+.example-insights h2 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.25rem, 7vw, 5rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
 .error {
   position: fixed;
   inset-block-end: 1rem;

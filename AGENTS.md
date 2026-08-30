@@ -20,7 +20,8 @@ Run `pnpm verify` before handoff. Run `pnpm release:verify` before a release. Us
 ## Invariants
 
 - Keep one source of truth for public behavior.
-- `defineTour()` describes, `<TourHost />` renders, `useTour()` controls, and
+- `defineTour()` describes, `<TourHost />` renders, `useNuxtTour()` or the Vue
+  `useTour()` controls, and
   semantic target IDs locate. Do not overlap these responsibilities.
 - Keep controller transitions asynchronous and application-scoped. Never use a
   process-global runtime singleton.

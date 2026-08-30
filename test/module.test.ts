@@ -1,4 +1,6 @@
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { $fetch, setup, useTestContext } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
@@ -17,5 +19,16 @@ describe('Nuxt module', async () => {
     const typesTemplate = templates.find(template => template.filename === 'types/nuxt-tour.d.ts')
     expect(registryTemplate).toBeTruthy()
     expect(typesTemplate).toBeTruthy()
+  })
+
+  it('uses collision-resistant Nuxt names and keeps internals private', () => {
+    const nuxt = useTestContext().nuxt!
+    const imports = readFileSync(resolve(nuxt.options.buildDir, 'imports.d.ts'), 'utf8')
+    const components = readFileSync(resolve(nuxt.options.buildDir, 'components.d.ts'), 'utf8')
+
+    expect(imports).toContain('useNuxtTour')
+    expect(imports).not.toMatch(/\buseTour\b/u)
+    expect(components).toContain('TourHost')
+    expect(components).not.toContain('TourContent')
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const onboarding = useTour('onboarding')
+const onboarding = useNuxtTour('onboarding')
 const errorMessage = ref('')
 
 async function startTour(): Promise<void> {

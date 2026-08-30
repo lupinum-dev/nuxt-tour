@@ -1,16 +1,13 @@
-import { inject, onScopeDispose, toValue, watch } from 'vue'
+import { onScopeDispose, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
-import { TourError } from '../errors'
-import { tourRuntimeKey } from './injection'
+import type { TourTargetId } from '../types'
+import { useTourRuntime } from './use-runtime'
 
-export function useTourTarget(
-  id: string,
-  target: MaybeRefOrGetter<HTMLElement | null | undefined>,
+export function useTourTarget<Id extends TourTargetId>(
+  id: Id,
+  target: MaybeRefOrGetter<Element | null | undefined>,
 ): () => void {
-  const runtime = inject(tourRuntimeKey)
-  if (!runtime) {
-    throw new TourError('INVALID_DEFINITION', 'The tour plugin is not installed in this Vue application.')
-  }
+  const runtime = useTourRuntime('useTourTarget()')
 
   let unregister: (() => void) | undefined
   const stopWatch = watch(

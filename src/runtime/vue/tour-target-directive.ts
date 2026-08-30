@@ -1,4 +1,5 @@
 import type { ObjectDirective } from 'vue'
+import type { TourTargetRegistry } from '../targets'
 
 function targetId(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) {
@@ -7,17 +8,34 @@ function targetId(value: unknown): string {
   return value
 }
 
-export const vTourTarget: ObjectDirective<HTMLElement, string> = {
-  getSSRProps(binding) {
-    return { 'data-tour-target': targetId(binding.value) }
-  },
-  mounted(element, binding) {
-    element.dataset.tourTarget = targetId(binding.value)
-  },
-  updated(element, binding) {
-    element.dataset.tourTarget = targetId(binding.value)
-  },
-  beforeUnmount(element, binding) {
-    if (element.dataset.tourTarget === binding.value) delete element.dataset.tourTarget
-  },
+export type TourTargetDirective = ObjectDirective<Element, string>
+
+export function createTourTargetDirective(
+  registry: TourTargetRegistry,
+): TourTargetDirective {
+  const registrations = new WeakMap<Element, () => void>()
+
+  const register = (element: Element, value: unknown) => {
+    const id = targetId(value)
+    registrations.get(element)?.()
+    element.setAttribute('data-tour-target', id)
+    registrations.set(element, registry.register(id, element))
+  }
+
+  return {
+    getSSRProps(binding) {
+      return { 'data-tour-target': targetId(binding.value) }
+    },
+    mounted(element, binding) {
+      register(element, binding.value)
+    },
+    updated(element, binding) {
+      if (binding.value !== binding.oldValue) register(element, binding.value)
+    },
+    beforeUnmount(element) {
+      registrations.get(element)?.()
+      registrations.delete(element)
+      element.removeAttribute('data-tour-target')
+    },
+  }
 }

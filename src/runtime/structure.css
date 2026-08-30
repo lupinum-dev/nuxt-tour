@@ -29,13 +29,43 @@
 }
 
 [data-tour-part='positioner'] {
+  --tour-enter-x: 0;
+  --tour-enter-y: 0.375rem;
+  --tour-enter-origin: center;
   z-index: 3;
   max-width: min(24rem, calc(100vw - 2rem));
   pointer-events: none;
 }
 
+[data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='card'] {
+  pointer-events: none;
+}
+
+[data-tour-part='positioner'][data-placement^='top'] {
+  --tour-enter-y: 0.375rem;
+  --tour-enter-origin: bottom center;
+}
+
+[data-tour-part='positioner'][data-placement^='right'] {
+  --tour-enter-x: -0.375rem;
+  --tour-enter-y: 0;
+  --tour-enter-origin: left center;
+}
+
+[data-tour-part='positioner'][data-placement^='bottom'] {
+  --tour-enter-y: -0.375rem;
+  --tour-enter-origin: top center;
+}
+
+[data-tour-part='positioner'][data-placement^='left'] {
+  --tour-enter-x: 0.375rem;
+  --tour-enter-y: 0;
+  --tour-enter-origin: right center;
+}
+
 [data-tour-part='card'] {
   position: relative;
+  transform-origin: var(--tour-enter-origin);
   max-block-size: calc(100vh - 2rem);
   max-block-size: calc(100dvh - 2rem);
   overflow: auto;

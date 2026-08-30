@@ -1,13 +1,16 @@
 // @vitest-environment happy-dom
 
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, nextTick, ref } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { defineComponent, h, inject, nextTick, ref } from 'vue'
+import type { App, InjectionKey } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import { defineTour } from '../src/runtime/definition'
+import type { TourController } from '../src/runtime/types'
 import { TourTargetRegistry } from '../src/runtime/targets'
 import TourHost from '../src/runtime/vue/TourHost.vue'
-import { createTourInstallation, createTourPlugin } from '../src/runtime/vue/plugin'
-import { vTourTarget } from '../src/runtime/vue/tour-target-directive'
+import { createTourPlugin, installTour } from '../src/runtime/vue/plugin'
+import type { TourPluginOptions } from '../src/runtime/vue/plugin'
+import { createTourTargetDirective } from '../src/runtime/vue/tour-target-directive'
 import { useTour } from '../src/runtime/vue/use-tour'
 import { useTourTarget } from '../src/runtime/vue/use-tour-target'
 import { TourVueRuntime } from '../src/runtime/vue/runtime'
@@ -30,6 +33,21 @@ function makeVisible(element: HTMLElement): void {
     getBoundingClientRect: { value: () => visibleRect, configurable: true },
     scrollIntoView: { value: () => {}, configurable: true },
   })
+}
+
+function createTourInstallation(options: TourPluginOptions) {
+  let runtime: TourVueRuntime | undefined
+  return {
+    plugin: {
+      install(app: App) {
+        runtime = installTour(app, options)
+      },
+    },
+    get runtime(): TourVueRuntime {
+      if (!runtime) throw new Error('The test application is not mounted.')
+      return runtime
+    },
+  }
 }
 
 async function flushTour(): Promise<void> {
@@ -93,14 +111,16 @@ describe('Vue runtime', () => {
         const tour = useTour(definition)
         return () => h('main', [
           h('button', { id: 'start', onClick: () => tour.start() }, 'Start tour'),
-          h('button', { 'data-tour-target': 'one' }, 'First target'),
-          h('button', { 'data-tour-target': 'two' }, 'Second target'),
+          h('button', { id: 'first-target' }, 'First target'),
+          h('button', { id: 'second-target' }, 'Second target'),
           h(TourHost),
         ])
       },
     })
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [installation.plugin] } })
     for (const element of wrapper.findAll('button')) makeVisible(element.element as HTMLElement)
+    const stopFirst = installation.runtime.targets.register('one', wrapper.get('#first-target').element)
+    const stopSecond = installation.runtime.targets.register('two', wrapper.get('#second-target').element)
 
     await wrapper.get('#start').trigger('click')
     await flushTour()
@@ -112,6 +132,8 @@ describe('Vue runtime', () => {
 
     expect(document.querySelector('[data-tour-part="spotlight"]')).toBe(spotlight)
     expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-tour-step-id')).toBe('two')
+    stopFirst()
+    stopSecond()
     wrapper.unmount()
   })
 
@@ -137,10 +159,19 @@ describe('Vue runtime', () => {
     expect(installation.runtime.targets.ids).toEqual([])
   })
 
-  it('emits the directive attribute without a runtime registry dependency', () => {
+  it('registers directive targets with the owning application registry', () => {
+    const registry = new TourTargetRegistry()
+    const directive = createTourTargetDirective(registry)
     const element = document.createElement('button')
-    vTourTarget.mounted?.(element, { value: 'save' } as never, {} as never, null)
+    makeVisible(element)
+    document.body.append(element)
+    directive.mounted?.(element, { value: 'save' } as never, {} as never, null)
     expect(element.dataset.tourTarget).toBe('save')
+    expect(registry.resolve('save')).toBe(element)
+
+    directive.beforeUnmount?.(element, { value: 'save' } as never, {} as never, null)
+    expect(registry.resolve('save')).toBeNull()
+    element.remove()
   })
 
   it('waits for late targets and reports visible duplicates', async () => {
@@ -172,14 +203,89 @@ describe('Vue runtime', () => {
     second.remove()
   })
 
+  it('isolates semantic IDs by registry, reference-counts registrations, and supports selectors and SVG', async () => {
+    const registry = new TourTargetRegistry()
+    const otherRegistry = new TourTargetRegistry()
+    const registered = document.createElement('button')
+    const attributed = document.createElement('button')
+    attributed.setAttribute('data-tour-target', 'duplicate')
+    makeVisible(registered)
+    makeVisible(attributed)
+    document.body.append(registered, attributed)
+    const stopRegistered = registry.register('duplicate', registered)
+    const stopOther = otherRegistry.register('duplicate', attributed)
+
+    expect(registry.resolve('duplicate')).toBe(registered)
+    expect(otherRegistry.resolve('duplicate')).toBe(attributed)
+
+    const stopAgain = registry.register('duplicate', registered)
+    stopRegistered()
+    expect(registry.resolve('duplicate')).toBe(registered)
+    stopAgain()
+    registered.remove()
+    expect(registry.resolve('duplicate')).toBeNull()
+    expect(registry.resolve({ selector: '[data-tour-target="duplicate"]' })).toBe(attributed)
+    stopOther()
+    attributed.remove()
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('data-tour-target', 'chart')
+    Object.defineProperties(svg, {
+      getClientRects: { value: () => [visibleRect], configurable: true },
+      getBoundingClientRect: { value: () => visibleRect, configurable: true },
+    })
+    document.body.append(svg)
+    const stopSvg = registry.register('chart', svg)
+    expect(registry.resolve('chart')).toBe(svg)
+    stopSvg()
+    svg.remove()
+  })
+
+  it('detects a layout-only visibility change while waiting', async () => {
+    const registry = new TourTargetRegistry()
+    const controller = new AbortController()
+    const target = document.createElement('button')
+    target.setAttribute('data-tour-target', 'animated')
+    let visible = false
+    Object.defineProperty(target, 'getClientRects', {
+      value: () => visible ? [visibleRect] : [],
+      configurable: true,
+    })
+    document.body.append(target)
+    const unregister = registry.register('animated', target)
+
+    const waiting = registry.wait('animated', { signal: controller.signal, timeout: 250 })
+    await new Promise(resolve => setTimeout(resolve, 60))
+    visible = true
+
+    await expect(waiting).resolves.toBe(target)
+    unregister()
+    target.remove()
+  })
+
+  it('observes active target visibility through the registry', async () => {
+    const registry = new TourTargetRegistry()
+    const target = document.createElement('button')
+    makeVisible(target)
+    document.body.append(target)
+    const listener = vi.fn()
+    const stop = registry.observeVisibility(target, listener)
+
+    target.remove()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(listener).toHaveBeenCalledOnce()
+    stop()
+  })
+
   it('fails clearly when TourHost is absent', async () => {
     const definition = defineTour({
       id: 'hostless',
       steps: [{ id: 'one', title: 'One', content: 'One' }],
     })
-    const installation = createTourInstallation({ tours: [definition] })
+    const runtime = new TourVueRuntime([definition])
 
-    await expect(installation.runtime.controller(definition).start()).rejects.toEqual(expect.objectContaining({
+    await expect(runtime.controller(definition).start()).rejects.toEqual(expect.objectContaining({
       code: 'HOST_NOT_FOUND',
     }))
   })
@@ -198,7 +304,7 @@ describe('Vue runtime', () => {
     await tour.cancel('test')
     await start
 
-    expect(tour.status.value).toBe('idle')
+    expect(tour.isActive.value).toBe(false)
     expect(runtime.presentation.value).toBeNull()
     unregister()
   })
@@ -217,6 +323,9 @@ describe('Vue runtime', () => {
         },
       },
     })
+    const wrapper = mount(defineComponent(() => () => null), {
+      global: { plugins: [installation.plugin] },
+    })
     const unregister = installation.runtime.registerHost()
     const start = installation.runtime.controller(definition).start()
     await flushTour()
@@ -227,6 +336,51 @@ describe('Vue runtime', () => {
     await start
     expect(pushed).toEqual(['/projects'])
     unregister()
+    wrapper.unmount()
+  })
+
+  it('uses router replacement without treating its own navigation as external', async () => {
+    const definition = defineTour({
+      id: 'vue-router-replace',
+      steps: [{
+        id: 'route',
+        route: { path: '/projects', query: { tab: 'open' }, replace: true },
+        title: 'Route',
+        content: 'Route',
+      }],
+    })
+    let afterEach!: () => void
+    const push = vi.fn()
+    const replace = vi.fn(() => {
+      afterEach()
+    })
+    const installation = createTourInstallation({
+      tours: [definition],
+      router: {
+        push,
+        replace,
+        afterEach(handler) {
+          afterEach = handler
+          return () => {}
+        },
+      },
+    })
+    const wrapper = mount(defineComponent(() => () => null), {
+      global: { plugins: [installation.plugin] },
+    })
+    const unregister = installation.runtime.registerHost()
+    const start = installation.runtime.controller(definition).start()
+    await flushTour()
+    const presentation = installation.runtime.presentation.value
+    expect(presentation).not.toBeNull()
+    installation.runtime.ready(presentation!.transitionId)
+
+    await start
+    expect(push).not.toHaveBeenCalled()
+    expect(replace).toHaveBeenCalledWith({ path: '/projects', query: { tab: 'open' } })
+    expect(installation.runtime.controller(definition).isActive.value).toBe(true)
+    unregister()
+    wrapper.unmount()
   })
 
   it('keeps runtime internals out of the public Vue plugin', () => {
@@ -235,5 +389,204 @@ describe('Vue runtime', () => {
       steps: [{ id: 'one', title: 'One', content: 'One' }],
     })
     expect(createTourPlugin({ tours: [definition] })).not.toHaveProperty('runtime')
+  })
+
+  it('creates independent runtimes when one plugin object is reused', async () => {
+    const definition = defineTour({
+      id: 'isolated',
+      steps: [{ id: 'one', target: 'shared', title: 'One', content: 'One' }],
+    })
+    const plugin = createTourPlugin({ tours: [definition] })
+    const controllers: TourController<'one'>[] = []
+    const App = defineComponent({
+      setup() {
+        const tour = useTour(definition)
+        controllers.push(tour)
+        const target = ref<HTMLElement | null>(null)
+        useTourTarget('shared', target)
+        return () => h('main', [
+          h('button', { ref: target, class: 'target' }, 'Target'),
+          h(TourHost),
+        ])
+      },
+    })
+    const first = mount(App, { attachTo: document.body, global: { plugins: [plugin] } })
+    const second = mount(App, { attachTo: document.body, global: { plugins: [plugin] } })
+    makeVisible(first.get('.target').element as HTMLElement)
+    makeVisible(second.get('.target').element as HTMLElement)
+
+    await controllers[0]!.start()
+    await flushTour()
+
+    expect(controllers[0]!.isActive.value).toBe(true)
+    expect(controllers[1]!.isActive.value).toBe(false)
+    expect(document.querySelector('[data-tour-part="root"]')).not.toBeNull()
+
+    await controllers[0]!.cancel()
+    first.unmount()
+    second.unmount()
+  })
+
+  it('runs lifecycle callbacks with values provided by the owning Vue app', async () => {
+    const key: InjectionKey<string> = Symbol('application')
+    const observed: string[] = []
+    const definition = defineTour({
+      id: 'injection-context',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        when: () => {
+          observed.push(inject(key) ?? 'missing')
+          return true
+        },
+        prepare: () => {
+          observed.push(inject(key) ?? 'missing')
+          return () => observed.push(inject(key) ?? 'missing')
+        },
+      }],
+    })
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost)
+      },
+    })
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { plugins: [createTourPlugin({ tours: [definition] })], provide: { [key as symbol]: 'first' } },
+    })
+
+    await controller.start()
+    await flushTour()
+    await controller.cancel()
+
+    expect(observed).toEqual(['first', 'first', 'first'])
+    wrapper.unmount()
+  })
+
+  it('cancels a visible session when its host unmounts', async () => {
+    const definition = defineTour({
+      id: 'host-lifecycle',
+      steps: [{ id: 'one', title: 'One', content: 'One' }],
+    })
+    const showHost = ref(true)
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => showHost.value ? h(TourHost) : null
+      },
+    })
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { plugins: [createTourPlugin({ tours: [definition] })] },
+    })
+    await controller.start()
+    await flushTour()
+    expect(controller.isActive.value).toBe(true)
+
+    showHost.value = false
+    await flushTour()
+    await flushTour()
+
+    expect(controller.isActive.value).toBe(false)
+    expect(document.querySelector('[data-tour-part="root"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps a custom card named and described through its typed slot contract', async () => {
+    const definition = defineTour({
+      id: 'custom-card',
+      steps: [{ id: 'one', title: 'Custom title', content: 'Custom content' }],
+    })
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost, null, {
+          card: ({ descriptionId }: { descriptionId: string }) => (
+            h('p', { id: descriptionId }, 'Custom description')
+          ),
+        })
+      },
+    })
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: { plugins: [createTourPlugin({ tours: [definition] })] },
+    })
+
+    await controller.start()
+    await flushTour()
+
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(dialog.getAttribute('aria-label')).toBe('Custom title')
+    expect(document.getElementById(dialog.getAttribute('aria-describedby')!)).not.toBeNull()
+
+    await controller.cancel()
+    wrapper.unmount()
+  })
+
+  it('checks for a host before running route side effects', async () => {
+    const definition = defineTour({
+      id: 'preflight',
+      steps: [{ id: 'one', route: '/projects', title: 'One', content: 'One' }],
+    })
+    const navigate = vi.fn(async () => {})
+    const runtime = new TourVueRuntime([definition], {}, { navigate })
+
+    await expect(runtime.controller(definition).start()).rejects.toMatchObject({ code: 'HOST_NOT_FOUND' })
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('cancels a plain Vue tour when external navigation wins during startup', async () => {
+    let afterEach!: () => void
+    let preparationStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      preparationStarted = resolve
+    })
+    const definition = defineTour({
+      id: 'external-route',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        prepare: () => {
+          preparationStarted()
+          return new Promise<never>(() => {})
+        },
+      }],
+    })
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost)
+      },
+    })
+    const wrapper = mount(App, {
+      attachTo: document.body,
+      global: {
+        plugins: [createTourPlugin({
+          tours: [definition],
+          router: {
+            push: vi.fn(),
+            afterEach(handler) {
+              afterEach = () => handler()
+              return () => {}
+            },
+          },
+        })],
+      },
+    })
+
+    const start = controller.start()
+    await started
+    afterEach()
+    await start
+
+    expect(controller.isActive.value).toBe(false)
+    wrapper.unmount()
   })
 })

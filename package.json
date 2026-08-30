@@ -6,10 +6,17 @@
   "license": "MIT",
   "author": "Lupinum OG <info@lupinum.com> (https://lupinum.com)",
   "homepage": "https://nuxt-tour.lupinum.com",
-  "repository": { "type": "git", "url": "git+https://github.com/lupinum-dev/nuxt-tour.git" },
-  "bugs": { "url": "https://github.com/lupinum-dev/nuxt-tour/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lupinum-dev/nuxt-tour.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lupinum-dev/nuxt-tour/issues"
+  },
   "packageManager": "pnpm@11.21.0",
-  "engines": { "node": "^22.14.0 || ^24.0.0 || ^26.0.0" },
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  },
   "exports": {
     ".": {
       "types": "./dist/types.d.mts",
@@ -19,15 +26,40 @@
       "types": "./dist/runtime/vue/index.d.ts",
       "import": "./dist/runtime/vue/index.js"
     },
+    "./registry": {
+      "types": "./dist/runtime/registry.d.ts",
+      "import": "./dist/runtime/registry.js"
+    },
     "./style.css": "./dist/runtime/style.css",
     "./structure.css": "./dist/runtime/structure.css"
   },
-  "sideEffects": ["**/*.css"],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/module.mjs",
   "types": "./dist/types.d.mts",
-  "typesVersions": { "*": { ".": ["./dist/types.d.mts"], "vue": ["./dist/runtime/vue/index.d.ts"] } },
-  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
-  "publishConfig": { "access": "public" },
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/types.d.mts"
+      ],
+      "vue": [
+        "./dist/runtime/vue/index.d.ts"
+      ],
+      "registry": [
+        "./dist/runtime/registry.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "audit:all": "pnpm audit",
     "build": "nuxt-module-build build",
@@ -36,29 +68,44 @@
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
     "docs:build": "pnpm --dir docs build",
     "docs:dev": "pnpm --dir docs dev",
+    "docs:typecheck": "pnpm --dir docs typecheck",
     "lint": "eslint .",
     "pack:release": "node scripts/pack-release.mjs",
     "preview:pack": "node scripts/pack-release.mjs --preview",
+    "preview:verify": "pnpm preview:pack && node scripts/verify-packed-consumer.mjs --preview",
     "release:prepare": "changelogen --bump --clean",
-    "release:verify": "pnpm audit:all && pnpm verify && pnpm pack:release && node scripts/verify-packed-consumer.mjs",
+    "release:verify": "pnpm audit:all && pnpm verify:core && pnpm test:browser:release && pnpm pack:release && node scripts/verify-packed-consumer.mjs",
     "test": "vitest run",
-    "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck",
-    "verify": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm docs:build"
+    "test:unit": "vitest run",
+    "test:browser": "playwright test --project=chromium",
+    "test:browser:release": "playwright test",
+    "test:docs": "playwright test test/browser/docs.test.ts --project=chromium",
+    "test:types": "nuxt typecheck test/fixtures/basic",
+    "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck && pnpm docs:typecheck",
+    "verify": "pnpm verify:core && pnpm test:browser",
+    "verify:core": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm docs:build"
   },
   "dependencies": {
     "@floating-ui/vue": "^2.0.1",
-    "@nuxt/kit": "^4.5.2"
+    "@nuxt/kit": "^4.5.2",
+    "focus-trap": "^8.2.2",
+    "pathe": "^2.0.3"
   },
   "peerDependencies": {
     "nuxt": "^4.0.0",
     "vue": "^3.3.0"
   },
-  "peerDependenciesMeta": { "nuxt": { "optional": true } },
+  "peerDependenciesMeta": {
+    "nuxt": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.5.2",
     "@nuxt/test-utils": "^4.1.0",
+    "@playwright/test": "^1.62.1",
     "@types/node": "26.1.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/test-utils": "^2.5.0",

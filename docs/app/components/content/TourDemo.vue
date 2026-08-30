@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const tour = useTour('docs-demo')
+const tour = useNuxtTour('docs-demo')
 const filter = ref<'all' | 'active'>('all')
 const created = ref(false)
 const errorMessage = ref('')
@@ -40,7 +40,7 @@ function createProject(): void {
         <h2 id="tour-demo-title">
           Try the actual library
         </h2>
-        <p>Four short steps. Every spotlight, focus change, and interaction is powered by Nuxt Tour.</p>
+        <p>Click through nearby, distant, downward, and upward targets. Each move uses the same polished adaptive timing.</p>
       </div>
       <button
         type="button"
@@ -52,11 +52,14 @@ function createProject(): void {
           name="lucide:play"
           aria-hidden="true"
         />
-        {{ tour.status.value === 'active' ? 'Restart live tour' : 'Start live tour' }}
+        {{ tour.isActive.value ? 'Restart live tour' : 'Start live tour' }}
       </button>
     </div>
 
-    <div class="demo-window">
+    <div
+      v-tour-target="'demo-shell'"
+      class="demo-window"
+    >
       <div
         class="demo-windowbar"
         aria-hidden="true"
@@ -106,17 +109,14 @@ function createProject(): void {
         </aside>
 
         <div class="demo-main">
-          <header
-            data-tour-target="demo-workspace"
-            class="demo-workspace"
-          >
+          <header class="demo-workspace">
             <div>
               <p>Friday, 29 August</p>
               <h3>Projects</h3>
             </div>
             <button
+              v-tour-target="'demo-create'"
               type="button"
-              data-tour-target="demo-create"
               class="demo-create"
               @click="createProject"
             >
@@ -130,7 +130,7 @@ function createProject(): void {
 
           <div class="demo-toolbar">
             <div
-              data-tour-target="demo-filters"
+              v-tour-target="'demo-filters'"
               class="demo-filters"
               aria-label="Filter projects"
             >
@@ -192,7 +192,7 @@ function createProject(): void {
           </div>
 
           <div
-            data-tour-target="demo-api"
+            v-tour-target="'demo-api'"
             class="demo-api"
           >
             <span>app/tours/onboarding.ts</span>
@@ -282,7 +282,6 @@ function createProject(): void {
 
 .demo-start:disabled {
   cursor: wait;
-  opacity: 0.6;
 }
 
 .demo-window {

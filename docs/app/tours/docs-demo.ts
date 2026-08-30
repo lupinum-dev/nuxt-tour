@@ -3,9 +3,9 @@ export default defineTour({
   steps: [
     {
       id: 'workspace',
-      target: 'demo-workspace',
+      target: 'demo-shell',
       title: 'A real tour, running right here',
-      content: 'This is the actual Nuxt Tour runtime—not a video or a hand-built imitation.',
+      content: 'The app shell becomes the stable viewport anchor, so nearby steps do not make the page hunt up and down.',
       placement: 'bottom-start',
     },
     {
@@ -14,14 +14,16 @@ export default defineTour({
       title: 'The interface can stay interactive',
       content: 'Try changing the filter. Target interaction keeps useful controls available while everything else stays focused.',
       placement: 'bottom-start',
+      scrollTarget: 'demo-shell',
       interaction: 'target',
     },
     {
       id: 'api',
       target: 'demo-api',
       title: 'Stable targets, typed definitions',
-      content: 'Name the product concept once. Nuxt discovers the tour and gives useTour() its exact tour and step IDs.',
+      content: 'Name the product concept once. Nuxt discovers the tour and gives useNuxtTour() exact tour and step IDs.',
       placement: 'top-start',
+      scrollTarget: 'demo-shell',
     },
     {
       id: 'action',
@@ -29,7 +31,15 @@ export default defineTour({
       title: 'Tours can guide real work',
       content: 'Try the button. The target remains usable, focus stays correct, and the tour never flashes between steps.',
       placement: 'bottom-end',
+      scrollTarget: 'demo-shell',
       interaction: 'target',
+    },
+    {
+      id: 'recipes',
+      target: 'demo-recipes',
+      title: 'Long moves adapt to distance',
+      content: 'The browser handles the long journey. The spotlight starts to open only when this target is close and moving slowly.',
+      placement: 'top-start',
     },
   ],
 })

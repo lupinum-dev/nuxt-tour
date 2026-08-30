@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" role="img" aria-labelledby="title description">
+  <title id="title">Habitat restoration project overview</title>
+  <desc id="description">A project dashboard with a wetland photograph, restoration progress, and three active work areas.</desc>
+  <rect width="640" height="360" rx="24" fill="#ecfdf5"/>
+  <rect x="24" y="24" width="592" height="56" rx="14" fill="#ffffff"/>
+  <circle cx="52" cy="52" r="12" fill="#0f766e"/>
+  <path d="M47 56c3-9 9-12 15-12-1 8-5 14-15 12Z" fill="#d1fae5"/>
+  <rect x="76" y="42" width="132" height="10" rx="5" fill="#134e4a"/>
+  <rect x="76" y="59" width="84" height="7" rx="3.5" fill="#99f6e4"/>
+  <rect x="492" y="39" width="100" height="26" rx="13" fill="#ccfbf1"/>
+  <rect x="24" y="104" width="250" height="232" rx="18" fill="#ffffff"/>
+  <rect x="40" y="120" width="218" height="112" rx="12" fill="#0f766e"/>
+  <path d="M40 196c38-30 70-21 99-2 35 24 75 20 119-14v52H40Z" fill="#5eead4"/>
+  <path d="M40 212c42-17 80-8 112 9 31 16 66 13 106-5v16H40Z" fill="#99f6e4"/>
+  <circle cx="220" cy="150" r="18" fill="#fef3c7"/>
+  <rect x="40" y="254" width="156" height="12" rx="6" fill="#134e4a"/>
+  <rect x="40" y="276" width="196" height="8" rx="4" fill="#a7f3d0"/>
+  <rect x="40" y="294" width="126" height="24" rx="12" fill="#0f766e"/>
+  <rect x="298" y="104" width="318" height="72" rx="18" fill="#ffffff"/>
+  <text x="318" y="132" fill="#115e59" font-family="ui-sans-serif, system-ui" font-size="13" font-weight="700">RESTORATION PROGRESS</text>
+  <text x="318" y="160" fill="#134e4a" font-family="ui-sans-serif, system-ui" font-size="26" font-weight="800">68%</text>
+  <rect x="390" y="145" width="198" height="10" rx="5" fill="#d1fae5"/>
+  <rect x="390" y="145" width="135" height="10" rx="5" fill="#14b8a6"/>
+  <rect x="298" y="192" width="318" height="144" rx="18" fill="#ffffff"/>
+  <text x="318" y="222" fill="#134e4a" font-family="ui-sans-serif, system-ui" font-size="15" font-weight="800">Active work areas</text>
+  <circle cx="326" cy="251" r="8" fill="#2dd4bf"/>
+  <rect x="346" y="246" width="128" height="10" rx="5" fill="#115e59"/>
+  <rect x="510" y="246" width="78" height="10" rx="5" fill="#ccfbf1"/>
+  <circle cx="326" cy="281" r="8" fill="#f59e0b"/>
+  <rect x="346" y="276" width="104" height="10" rx="5" fill="#115e59"/>
+  <rect x="510" y="276" width="56" height="10" rx="5" fill="#fef3c7"/>
+  <circle cx="326" cy="311" r="8" fill="#fb7185"/>
+  <rect x="346" y="306" width="142" height="10" rx="5" fill="#115e59"/>
+  <rect x="510" y="306" width="66" height="10" rx="5" fill="#ffe4e6"/>
+</svg>

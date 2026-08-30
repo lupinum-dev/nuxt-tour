@@ -6,6 +6,7 @@
   --tour-card-radius: 0.875rem;
   --tour-card-shadow: 0 1.25rem 3rem rgb(0 0 0 / 24%);
   --tour-overlay-color: rgb(9 9 11 / 58%);
+  --tour-spotlight-padding: 8px;
   --tour-spotlight-radius: 0.625rem;
   --tour-accent: #4f46e5;
   --tour-accent-hover: #4338ca;
@@ -27,6 +28,25 @@
 [data-tour-part='spotlight'] {
   border-radius: var(--tour-spotlight-radius);
   box-shadow: 0 0 0 100vmax var(--tour-overlay-color);
+}
+
+[data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='spotlight'] {
+  will-change: transform;
+}
+
+[data-tour-part='spotlight']::after {
+  position: absolute;
+  border-radius: inherit;
+  background: var(--tour-overlay-color);
+  content: '';
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-tour-part='root'][data-visual-phase='covering'] [data-tour-part='spotlight']::after,
+[data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='spotlight']::after {
+  opacity: 1;
 }
 
 [data-tour-part='card'] {
@@ -89,12 +109,30 @@
   text-transform: uppercase;
 }
 
+[data-tour-part='pending'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 [data-tour-part='title'] {
   margin: 0;
   margin-block-end: 0.5rem;
   margin-inline-end: 3rem;
   font-size: 1.25rem;
   line-height: 1.3;
+}
+
+/* The heading receives focus for screen-reader announcement but is not part of
+   keyboard navigation, so the browser's input-like default ring is misleading. */
+[data-tour-part='title']:focus {
+  outline: none;
 }
 
 [data-tour-part='content'] {
@@ -115,7 +153,10 @@
   cursor: pointer;
   font: inherit;
   font-weight: 650;
-  transition: background-color 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
   touch-action: manipulation;
 }
 
@@ -126,12 +167,11 @@
 }
 
 [data-tour-part='actions'] button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 [data-tour-part='actions'] button:disabled {
   cursor: wait;
-  opacity: 0.55;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -146,24 +186,38 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  [data-tour-part='card'] {
-    animation: tour-card-enter 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  [data-tour-part='positioner'] {
+    opacity: 1;
+    transition: opacity 140ms cubic-bezier(0.19, 1, 0.22, 1);
   }
 
-  [data-tour-part='overlay'] {
-    animation: tour-overlay-enter 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
-
-@keyframes tour-card-enter {
-  from {
+  [data-tour-part='root'][data-visual-phase='covering'] [data-tour-part='positioner'],
+  [data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='positioner'] {
     opacity: 0;
-    transform: translateY(0.25rem);
   }
-}
 
-@keyframes tour-overlay-enter {
-  from { opacity: 0; }
+  [data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='positioner'] {
+    transition-duration: 100ms;
+  }
+
+  [data-tour-part='positioner'] > [data-tour-part='card'] {
+    transform: translate3d(0, 0, 0);
+    transition: transform 140ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  [data-tour-part='root'][data-visual-phase='covering'] [data-tour-part='card'],
+  [data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='card'] {
+    transform: translate3d(var(--tour-enter-x), var(--tour-enter-y), 0);
+  }
+
+  [data-tour-part='spotlight']::after {
+    transition: opacity 120ms cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  [data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='spotlight']::after {
+    transition-duration: 70ms;
+  }
+
 }
 
 @media (prefers-color-scheme: dark) {
@@ -214,6 +268,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-tour-part='positioner'] {
+    transition: opacity 120ms ease-out;
+  }
+
+  [data-tour-part='spotlight']::after {
+    transition: none;
+  }
+
+  [data-tour-part='root'][data-visual-phase='covering'] [data-tour-part='positioner'],
+  [data-tour-part='root'][data-visual-phase='moving'] [data-tour-part='positioner'] {
+    opacity: 0;
+  }
+
   [data-tour-part='actions'] button {
     transition: none;
   }

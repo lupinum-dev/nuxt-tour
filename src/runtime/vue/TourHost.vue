@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { arrow as floatingArrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { createFocusTrap } from 'focus-trap'
+import type { FocusTrap } from 'focus-trap'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { CSSProperties } from 'vue'
-import type { TourController, TourLabels } from '../types'
-import { tourRuntimeKey } from './injection'
+import { isVisibleTarget } from '../targets'
+import type { TourCardSlotProps, TourController, TourLabels } from '../types'
 import { TourContent } from './TourContent'
+import { useTourRuntime } from './use-runtime'
 
 const props = defineProps<{
   labels?: Partial<TourLabels>
+}>()
+
+defineSlots<{
+  card: (props: TourCardSlotProps) => unknown
 }>()
 
 const defaultLabels: TourLabels = {
@@ -16,39 +23,57 @@ const defaultLabels: TourLabels = {
   finish: 'Finish',
   skip: 'Skip tour',
   close: 'Close tour',
+  pending: 'Loading next step',
   progress: (current, total) => `Step ${current} of ${total}`,
 }
 
-const runtime = inject(tourRuntimeKey)
-if (!runtime) throw new Error('TourHost requires the Nuxt Tour plugin.')
+const runtime = useTourRuntime('TourHost')
 
 const mounted = ref(false)
 const root = shallowRef<HTMLElement | null>(null)
 const card = shallowRef<HTMLElement | null>(null)
-const reference = shallowRef<HTMLElement | null>(null)
+const reference = shallowRef<Element | null>(null)
 const floating = shallowRef<HTMLElement | null>(null)
 const arrow = shallowRef<HTMLElement | null>(null)
 const targetRect = ref<DOMRect | null>(null)
-const returnFocus = shallowRef<HTMLElement | null>(null)
-const inertState = new Map<HTMLElement, boolean>()
+const positionReady = ref(false)
+let focusTrap: FocusTrap | null = null
 
 const presentation = computed(() => runtime.presentation.value)
+const visualTarget = computed(() => runtime.transitionTarget.value ?? presentation.value?.target ?? null)
+const visualPhase = computed(() => runtime.visualPhase.value)
+const relocating = computed(() => visualPhase.value === 'moving')
 const controller = computed<TourController | null>(() => {
   const current = presentation.value
   return current ? runtime.controller(current.definition.id) : null
 })
 const labels = computed<TourLabels>(() => ({ ...defaultLabels, ...props.labels }))
 const placement = computed(() => presentation.value?.step.placement ?? 'bottom')
-const interaction = computed(() => presentation.value?.step.interaction ?? 'blocked')
+const interaction = computed(() => presentation.value?.step.interaction ?? 'modal')
+const titleId = computed(() => presentation.value?.step.title
+  ? `tour-title-${presentation.value.transitionId}`
+  : undefined)
+const descriptionId = computed(() => presentation.value
+  ? `tour-description-${presentation.value.transitionId}`
+  : '')
 const middleware = computed(() => [
   offset(presentation.value?.step.offset ?? 12),
   flip({ padding: 12 }),
-  shift({ padding: 12 }),
+  shift({ padding: 12, crossAxis: true }),
   floatingArrow({ element: arrow }),
 ])
 
-function updateTargetRect(): void {
-  targetRect.value = reference.value?.getBoundingClientRect() ?? null
+function updateTargetRect(target = visualTarget.value): void {
+  if (!target || !isVisibleTarget(target)) {
+    targetRect.value = null
+    return
+  }
+
+  const rect = target.getBoundingClientRect()
+  const view = target.ownerDocument.defaultView
+  const intersectsViewport = !view
+    || (rect.bottom > 0 && rect.right > 0 && rect.top < view.innerHeight && rect.left < view.innerWidth)
+  targetRect.value = intersectsViewport ? rect : null
 }
 
 const { floatingStyles, middlewareData, placement: resolvedPlacement, update } = useFloating(reference, floating, {
@@ -56,10 +81,7 @@ const { floatingStyles, middlewareData, placement: resolvedPlacement, update } =
   middleware,
   strategy: 'fixed',
   whileElementsMounted(referenceElement, floatingElement, updatePosition) {
-    return autoUpdate(referenceElement, floatingElement, () => {
-      updateTargetRect()
-      updatePosition()
-    })
+    return autoUpdate(referenceElement, floatingElement, updatePosition)
   },
 })
 
@@ -75,7 +97,10 @@ const arrowStyle = computed<CSSProperties>(() => {
 })
 
 const cardStyle = computed<CSSProperties>(() => presentation.value?.target
-  ? floatingStyles.value
+  ? {
+      ...floatingStyles.value,
+      visibility: positionReady.value ? undefined : 'hidden',
+    }
   : {
       position: 'fixed',
       insetInlineStart: '50%',
@@ -86,15 +111,22 @@ const cardStyle = computed<CSSProperties>(() => presentation.value?.target
 const spotlightStyle = computed<CSSProperties | undefined>(() => {
   const rect = targetRect.value
   if (!rect) return undefined
+  const padding = root.value
+    ? Number.parseFloat(getComputedStyle(root.value).getPropertyValue('--tour-spotlight-padding')) || 0
+    : 0
   return {
-    insetInlineStart: `${rect.left}px`,
-    insetBlockStart: `${rect.top}px`,
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
+    left: '0',
+    top: '0',
+    transform: `translate3d(${rect.left - padding}px, ${rect.top - padding}px, 0)`,
+    width: `${rect.width + padding * 2}px`,
+    height: `${rect.height + padding * 2}px`,
   }
 })
 
 const blockers = computed<CSSProperties[]>(() => {
+  if (visualPhase.value === 'covering' || visualPhase.value === 'moving') {
+    return interaction.value === 'modal' ? [] : [{ inset: '0' }]
+  }
   if (interaction.value !== 'target' || !targetRect.value) return []
   const rect = targetRect.value
   return [
@@ -105,69 +137,51 @@ const blockers = computed<CSSProperties[]>(() => {
   ]
 })
 
-function clearInert(): void {
-  for (const [element, wasInert] of inertState) element.inert = wasInert
-  inertState.clear()
-}
-
-function applyInert(): void {
-  clearInert()
-  if (interaction.value !== 'blocked' || !root.value) return
-  for (const child of document.body.children) {
-    if (!(child instanceof HTMLElement) || child === root.value) continue
-    inertState.set(child, child.inert)
-    child.inert = true
-  }
-}
-
-function focusableWithin(container: HTMLElement): HTMLElement[] {
-  const selector = [
-    'a[href]',
-    'button:not([disabled])',
-    'input:not([disabled])',
-    'select:not([disabled])',
-    'textarea:not([disabled])',
-    '[tabindex]:not([tabindex="-1"])',
-  ].join(',')
-  const result = [...container.querySelectorAll<HTMLElement>(selector)]
-  if (container.matches(selector)) result.unshift(container)
-  return result.filter(element => !element.hidden && element.getClientRects().length > 0)
-}
-
-function trappedElements(): HTMLElement[] {
-  if (!root.value) return []
-  const elements = focusableWithin(root.value)
-  if (interaction.value === 'target' && reference.value) {
-    elements.unshift(...focusableWithin(reference.value))
-  }
-  return [...new Set(elements)]
-}
-
 function onKeydown(event: KeyboardEvent): void {
-  if (!presentation.value || !controller.value) return
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    void controller.value.cancel('escape')
-    return
-  }
-  if (event.key !== 'Tab' || interaction.value === 'allowed') return
-
-  const elements = trappedElements()
-  if (elements.length === 0) {
-    event.preventDefault()
-    card.value?.focus()
-    return
-  }
-  const activeIndex = elements.indexOf(document.activeElement as HTMLElement)
-  const nextIndex = event.shiftKey
-    ? (activeIndex <= 0 ? elements.length - 1 : activeIndex - 1)
-    : (activeIndex < 0 || activeIndex === elements.length - 1 ? 0 : activeIndex + 1)
+  if (event.defaultPrevented || event.key !== 'Escape' || !presentation.value || !controller.value) return
   event.preventDefault()
-  elements[nextIndex]?.focus()
+  void controller.value.cancel('escape')
+}
+
+function deactivateFocusTrap(): void {
+  focusTrap?.deactivate({ returnFocus: false })
+  focusTrap = null
+}
+
+function activateFocusTrap(): void {
+  deactivateFocusTrap()
+  const currentCard = card.value
+  if (!currentCard || interaction.value === 'page') return
+  const focusableTarget = reference.value instanceof HTMLElement || reference.value instanceof SVGElement
+    ? reference.value
+    : null
+  const containers = interaction.value === 'target' && focusableTarget
+    ? [currentCard, focusableTarget]
+    : [currentCard]
+  const tabbableOptions = {
+    // Include a target that is itself interactive, such as a button or link.
+    includeContainer: true,
+    // DOM emulators have no layout engine; real browsers use full visibility checks.
+    displayCheck: navigator.userAgent.includes('HappyDOM') ? 'none' as const : 'full' as const,
+  }
+  focusTrap = createFocusTrap(containers, {
+    escapeDeactivates: false,
+    fallbackFocus: currentCard,
+    initialFocus: () => root.value?.querySelector<HTMLElement>('[data-tour-part="title"]') ?? currentCard,
+    isolateSubtrees: 'inert',
+    delayInitialFocus: false,
+    preventScroll: true,
+    returnFocusOnDeactivate: false,
+    tabbableOptions,
+  })
+  focusTrap.activate()
 }
 
 function run(command: (() => Promise<void>) | undefined): void {
-  void command?.().catch(() => {})
+  void command?.().catch((error) => {
+    if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
+    else console.error('[nuxt-tour] A tour action failed.', error)
+  })
 }
 
 function closeTour(): void {
@@ -175,65 +189,96 @@ function closeTour(): void {
 }
 
 watch(
-  presentation,
-  async (current) => {
-    reference.value = current?.target ?? null
-    if (!current) {
+  visualTarget,
+  async (target, _previous, onCleanup) => {
+    if (!target) {
       targetRect.value = null
       return
     }
+    await nextTick()
+    if (visualTarget.value !== target) return
+    updateTargetRect(target)
+    if (root.value) onCleanup(autoUpdate(target, root.value, () => updateTargetRect(target)))
+  },
+  { flush: 'post' },
+)
+
+watch(
+  presentation,
+  async (current, _previous, onCleanup) => {
+    positionReady.value = false
+    reference.value = current?.target ?? null
+    if (!current) {
+      targetRect.value = null
+      deactivateFocusTrap()
+      return
+    }
     if (!current.target) targetRect.value = null
+    if (current.target) {
+      let recovering = false
+      const stopObserving = runtime.targets.observeVisibility(current.target, () => {
+        if (recovering) return
+        recovering = true
+        reference.value = null
+        targetRect.value = null
+        activateFocusTrap()
+        void runtime.targetDisconnected(current.transitionId).catch((error) => {
+          if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
+          else console.error('[nuxt-tour] The active target could not be recovered.', error)
+        })
+      })
+      onCleanup(stopObserving)
+    }
     try {
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
       updateTargetRect()
-      await update()
+      update()
+      // Floating UI calculates asynchronously. Keep the card hidden until its
+      // first real coordinates have reached the DOM, so it never flashes at 0,0.
+      if (current.target) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+      }
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
-      const title = root.value?.querySelector<HTMLElement>('[data-tour-part="title"]')
-      ;(title ?? card.value)?.focus({ preventScroll: true })
-      applyInert()
+      positionReady.value = true
+      await nextTick()
+      if (presentation.value?.transitionId !== current.transitionId) return
+      await runtime.reveal(current.transitionId, current.signal)
+      if (presentation.value?.transitionId !== current.transitionId) return
+      activateFocusTrap()
+      if (interaction.value === 'page') {
+        const title = root.value?.querySelector<HTMLElement>('[data-tour-part="title"]')
+        ;(title ?? card.value)?.focus({ preventScroll: true })
+      }
       runtime.ready(current.transitionId)
     }
     catch (error) {
       runtime.fail(current.transitionId, error)
     }
   },
-  { flush: 'post' },
-)
-
-watch(
-  () => runtime.sessionActive.value,
-  (active, wasActive) => {
-    if (active && !wasActive) {
-      returnFocus.value = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      return
-    }
-    if (!active && wasActive) {
-      clearInert()
-      if (returnFocus.value?.isConnected) returnFocus.value.focus({ preventScroll: true })
-      returnFocus.value = null
-    }
-  },
+  // Hide the old positioned card before Vue can paint the destination content.
+  // The async branch then reveals it only after Floating UI has settled.
+  { flush: 'sync' },
 )
 
 let unregisterHost: (() => void) | undefined
 onMounted(() => {
   mounted.value = true
   unregisterHost = runtime.registerHost()
-  document.addEventListener('keydown', onKeydown, true)
+  document.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onKeydown, true)
+  document.removeEventListener('keydown', onKeydown)
   unregisterHost?.()
-  clearInert()
+  deactivateFocusTrap()
 })
 </script>
 
 <template>
   <Teleport
-    v-if="mounted && runtime.sessionActive.value"
+    v-if="mounted && visualPhase !== 'hidden'"
     to="body"
   >
     <div
@@ -241,22 +286,24 @@ onBeforeUnmount(() => {
       data-tour-part="root"
       :data-tour-id="presentation?.definition.id"
       :data-tour-step-id="presentation?.step.id"
+      :data-visual-phase="visualPhase"
+      :data-relocating="relocating ? '' : undefined"
     >
       <div
         data-tour-part="overlay"
-        :data-centered="presentation && (!presentation.target || !targetRect) ? '' : undefined"
+        :data-centered="visualPhase === 'covering' || (visualPhase === 'moving' && !targetRect) || (presentation && (!visualTarget || !targetRect)) ? '' : undefined"
         aria-hidden="true"
       />
 
       <div
-        v-if="presentation?.target && targetRect"
+        v-if="visualTarget && targetRect"
         data-tour-part="spotlight"
         :style="spotlightStyle"
         aria-hidden="true"
       />
 
       <div
-        v-if="interaction === 'blocked'"
+        v-if="interaction === 'modal'"
         data-tour-part="blocker"
         aria-hidden="true"
       />
@@ -272,15 +319,18 @@ onBeforeUnmount(() => {
         v-if="presentation && controller"
         ref="floating"
         data-tour-part="positioner"
+        :data-placement="presentation.target ? resolvedPlacement : undefined"
+        :data-positioned="!presentation.target || positionReady ? '' : undefined"
         :style="cardStyle"
       >
         <section
           ref="card"
           data-tour-part="card"
           role="dialog"
-          :aria-modal="interaction === 'blocked' ? 'true' : undefined"
-          :aria-labelledby="presentation.step.title ? `tour-title-${presentation.transitionId}` : undefined"
-          :aria-label="presentation.step.title ? undefined : presentation.step.ariaLabel"
+          :aria-modal="interaction === 'modal' ? 'true' : undefined"
+          :aria-label="presentation.step.ariaLabel ?? presentation.step.title"
+          :aria-describedby="descriptionId"
+          :aria-busy="controller.pending.value ? 'true' : undefined"
           tabindex="-1"
         >
           <slot
@@ -289,6 +339,9 @@ onBeforeUnmount(() => {
             :controller="controller"
             :index="presentation.index"
             :total="controller.total.value"
+            :title-id="titleId"
+            :description-id="descriptionId"
+            :pending="controller.pending.value"
           >
             <button
               type="button"
@@ -302,15 +355,24 @@ onBeforeUnmount(() => {
             <p data-tour-part="progress">
               {{ labels.progress(presentation.index + 1, controller.total.value) }}
             </p>
+            <span
+              v-if="controller.pending.value"
+              data-tour-part="pending"
+              role="status"
+            >
+              {{ labels.pending }}
+            </span>
             <h2
               v-if="presentation.step.title"
-              :id="`tour-title-${presentation.transitionId}`"
+              :id="titleId"
               data-tour-part="title"
               tabindex="-1"
             >
               {{ presentation.step.title }}
             </h2>
-            <TourContent :step="presentation.step" />
+            <div :id="descriptionId">
+              <TourContent :step="presentation.step" />
+            </div>
 
             <div data-tour-part="actions">
               <button
@@ -339,7 +401,7 @@ onBeforeUnmount(() => {
           </slot>
         </section>
         <span
-          v-if="presentation.target"
+          v-if="presentation.target && positionReady"
           ref="arrow"
           data-tour-part="arrow"
           :style="arrowStyle"

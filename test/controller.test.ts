@@ -51,6 +51,23 @@ describe('tour definitions', () => {
       steps: [{ id: 'step', title: 'Step', content: 'Content', interaction: 'target' }],
     }))
       .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
+    expect(() => validateTourDefinition({
+      id: 'targetless-scroll-anchor',
+      steps: [{ id: 'step', title: 'Step', content: 'Content', scrollTarget: 'section' }],
+    }))
+      .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
+    expect(() => validateTourDefinition({
+      id: 'disabled-scroll-anchor',
+      steps: [{
+        id: 'step',
+        target: 'control',
+        scrollTarget: 'section',
+        scroll: false,
+        title: 'Step',
+        content: 'Content',
+      }],
+    }))
+      .toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
   })
 })
 
@@ -62,6 +79,7 @@ describe('tour controller', () => {
 
   it('settles after route, preparation, target resolution, scrolling, and presentation', async () => {
     const calls: string[] = []
+    let scrollOptions: Readonly<ScrollIntoViewOptions> | undefined
     const definition = defineTour({
       id: 'ordered',
       steps: [{
@@ -83,7 +101,10 @@ describe('tour controller', () => {
         calls.push('target')
         return 'element'
       }),
-      scroll: vi.fn(async () => { calls.push('scroll') }),
+      scroll: vi.fn(async (_target, options) => {
+        calls.push('scroll')
+        scrollOptions = options
+      }),
       show: vi.fn(async () => { calls.push('show') }),
     }))
     const tour = runtime.controller(definition)
@@ -91,10 +112,80 @@ describe('tour controller', () => {
     await tour.start()
 
     expect(calls).toEqual(['when', 'route', 'prepare', 'target', 'scroll', 'show'])
-    expect(tour.status.value).toBe('active')
+    expect(scrollOptions).toEqual({ block: 'center', inline: 'nearest' })
+    expect(tour.isActive.value).toBe(true)
     expect(tour.currentStepId.value).toBe('destination')
     expect(tour.index.value).toBe(0)
     expect(tour.pending.value).toBe(false)
+  })
+
+  it('can scroll a stable section while presenting a precise target', async () => {
+    const definition = defineTour({
+      id: 'stable-section',
+      steps: [{
+        id: 'filter',
+        target: 'filter-control',
+        scrollTarget: 'project-shell',
+        title: 'Filter projects',
+        content: 'Choose a filter.',
+      }],
+    })
+    const resolveTarget = vi.fn(async (target: string | { id: string } | { selector: string }) => (
+      typeof target === 'string' ? `element:${target}` : null
+    ))
+    const scroll = vi.fn(async () => {})
+    const show = vi.fn(async () => {})
+    const runtime = new TourRuntime([definition], adapter({ resolveTarget, scroll, show }))
+
+    await runtime.controller(definition).start()
+
+    expect(resolveTarget).toHaveBeenNthCalledWith(
+      1,
+      'filter-control',
+      expect.objectContaining({ timeout: 5_000 }),
+    )
+    expect(resolveTarget).toHaveBeenNthCalledWith(
+      2,
+      'project-shell',
+      expect.objectContaining({ timeout: 5_000 }),
+    )
+    expect(scroll).toHaveBeenCalledWith(
+      'element:filter-control',
+      { block: 'center', inline: 'nearest' },
+      expect.any(AbortSignal),
+      'element:project-shell',
+    )
+    expect(show).toHaveBeenCalledWith(expect.objectContaining({ target: 'element:filter-control' }))
+  })
+
+  it('stays active while moving between steps', async () => {
+    let releaseSecond!: () => void
+    let secondStarted!: () => void
+    const secondShown = new Promise<void>((resolve) => {
+      releaseSecond = resolve
+    })
+    const showingSecond = new Promise<void>((resolve) => {
+      secondStarted = resolve
+    })
+    const runtime = new TourRuntime([basicTour], adapter({
+      show: vi.fn(async (presentation) => {
+        if (presentation.step.id === 'projects') {
+          secondStarted()
+          await secondShown
+        }
+      }),
+    }))
+    const tour = runtime.controller(basicTour)
+
+    await tour.start()
+    const moving = tour.next()
+    await showingSecond
+
+    expect(tour.isActive.value).toBe(true)
+    expect(tour.pending.value).toBe(true)
+    releaseSecond()
+    await moving
+    expect(tour.isActive.value).toBe(true)
   })
 
   it('runs each preparation cleanup exactly once', async () => {
@@ -148,6 +239,43 @@ describe('tour controller', () => {
     expect(route).not.toHaveBeenCalled()
     expect(resolveTarget).not.toHaveBeenCalled()
     expect(secondPrepare).toHaveBeenCalledOnce()
+  })
+
+  it('keeps goTo and an explicit start destination exact', async () => {
+    const definition = defineTour({
+      id: 'exact',
+      steps: [
+        { id: 'one', title: 'One', content: 'One' },
+        { id: 'unavailable', title: 'Unavailable', content: 'Unavailable', when: () => false },
+        { id: 'three', title: 'Three', content: 'Three' },
+      ],
+    })
+    const runtime = new TourRuntime([definition], adapter())
+    const tour = runtime.controller(definition)
+
+    await tour.start()
+    await expect(tour.goTo('unavailable')).rejects.toMatchObject({ code: 'STEP_UNAVAILABLE' })
+    expect(tour.isActive.value).toBe(true)
+    expect(tour.currentStepId.value).toBe('one')
+    await tour.cancel()
+
+    await expect(tour.start({ at: 'unavailable' })).rejects.toMatchObject({ code: 'STEP_UNAVAILABLE' })
+    expect(tour.isActive.value).toBe(false)
+  })
+
+  it('rejects a declared route when no router is configured', async () => {
+    const definition = defineTour({
+      id: 'needs-router',
+      steps: [{ id: 'one', route: '/projects', title: 'One', content: 'One' }],
+    })
+    const runtime = new TourRuntime([definition], {
+      resolveTarget: vi.fn(async () => null),
+      show: vi.fn(async () => {}),
+    })
+
+    await expect(runtime.controller(definition).start()).rejects.toMatchObject({
+      code: 'ROUTER_NOT_CONFIGURED',
+    })
   })
 
   it('continues after an explicitly skipped missing target', async () => {
@@ -226,7 +354,7 @@ describe('tour controller', () => {
 
     await expect(tour.start()).rejects.toMatchObject({ code: 'TARGET_NOT_FOUND' })
     expect(cleanup).toHaveBeenCalledOnce()
-    expect(tour.status.value).toBe('idle')
+    expect(tour.isActive.value).toBe(false)
     expect(tour.currentStep.value).toBeNull()
   })
 
@@ -286,7 +414,7 @@ describe('tour controller', () => {
     await tour.start({ at: 'shown' })
     await tour.previous()
 
-    expect(tour.status.value).toBe('active')
+    expect(tour.isActive.value).toBe(true)
     expect(tour.currentStepId.value).toBe('shown')
   })
 
@@ -317,7 +445,7 @@ describe('tour controller', () => {
     await start
 
     expect(cleanup).toHaveBeenCalledOnce()
-    expect(tour.status.value).toBe('idle')
+    expect(tour.isActive.value).toBe(false)
   })
 
   it('protects the single active-tour invariant and supports replacement', async () => {
@@ -333,7 +461,7 @@ describe('tour controller', () => {
     await expect(second.start()).rejects.toMatchObject({ code: 'TOUR_ALREADY_ACTIVE' })
     await second.start({ replace: true })
 
-    expect(first.status.value).toBe('idle')
+    expect(first.isActive.value).toBe(false)
     expect(second.currentStepId.value).toBe('only')
   })
 
@@ -365,5 +493,162 @@ describe('tour controller', () => {
     }))
 
     await expect(runtime.controller(definition).start()).rejects.toBe(error)
+  })
+
+  it('owns the session while startup is still pending', async () => {
+    let release!: () => void
+    const shown = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const runtime = new TourRuntime([basicTour], adapter({ show: () => shown }))
+    const tour = runtime.controller(basicTour)
+
+    const start = tour.start()
+    await Promise.resolve()
+
+    expect(tour.isActive.value).toBe(true)
+    expect(tour.pending.value).toBe(true)
+    expect(tour.currentStep.value).toBeNull()
+
+    release()
+    await start
+  })
+
+  it('runs every consumer callback in the owning application context', async () => {
+    let contextDepth = 0
+    const observed: string[] = []
+    const definition = defineTour({
+      id: 'context',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        when: () => {
+          observed.push(`${contextDepth}:when`)
+          return true
+        },
+        prepare: () => {
+          observed.push(`${contextDepth}:prepare`)
+          return () => observed.push(`${contextDepth}:cleanup`)
+        },
+      }],
+    })
+    const runtime = new TourRuntime([definition], adapter({
+      runWithContext(callback) {
+        contextDepth += 1
+        try {
+          return callback()
+        }
+        finally {
+          contextDepth -= 1
+        }
+      },
+    }))
+    const tour = runtime.controller(definition)
+    tour.on('tour:start', () => observed.push(`${contextDepth}:event`))
+
+    await tour.start()
+    await tour.cancel()
+
+    expect(observed).toEqual(['1:event', '1:when', '1:prepare', '1:cleanup'])
+  })
+
+  it('awaits asynchronous application context during cleanup', async () => {
+    const cleanup = vi.fn()
+    const definition = defineTour({
+      id: 'async-context',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        prepare: () => cleanup,
+      }],
+    })
+    const runtime = new TourRuntime([definition], adapter({
+      async runWithContext(callback) {
+        await Promise.resolve()
+        return callback()
+      },
+    }))
+    const tour = runtime.controller(definition)
+
+    await tour.start()
+    await tour.cancel()
+
+    expect(cleanup).toHaveBeenCalledOnce()
+  })
+
+  it('isolates event-listener failures from runtime behavior', async () => {
+    const reported = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const runtime = new TourRuntime([basicTour], adapter())
+    const tour = runtime.controller(basicTour)
+    tour.on('tour:start', () => {
+      throw new Error('analytics failed')
+    })
+    tour.on('step:show', async () => {
+      throw new Error('async analytics failed')
+    })
+
+    await expect(tour.start()).resolves.toBeUndefined()
+    await Promise.resolve()
+    expect(tour.currentStepId.value).toBe('welcome')
+    expect(reported).toHaveBeenCalledTimes(2)
+    reported.mockRestore()
+  })
+
+  it('cancels callbacks that ignore their abort signal and cleans up late results', async () => {
+    const cleanup = vi.fn()
+    let resolvePreparation!: (cleanup: () => void) => void
+    let preparationStarted!: () => void
+    const started = new Promise<void>((resolve) => {
+      preparationStarted = resolve
+    })
+    const definition = defineTour({
+      id: 'uncooperative',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        prepare: () => new Promise<() => void>((resolve) => {
+          resolvePreparation = resolve
+          preparationStarted()
+        }),
+      }],
+    })
+    const runtime = new TourRuntime([definition], adapter())
+    const tour = runtime.controller(definition)
+
+    const start = tour.start()
+    await started
+    await tour.cancel('test')
+    await start
+    expect(tour.isActive.value).toBe(false)
+
+    resolvePreparation(cleanup)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(cleanup).toHaveBeenCalledOnce()
+  })
+
+  it('ends and clears the session even when cleanup throws', async () => {
+    const end = vi.fn(async () => {})
+    const definition = defineTour({
+      id: 'cleanup-error',
+      steps: [{
+        id: 'one',
+        title: 'One',
+        content: 'One',
+        prepare: () => () => { throw new Error('cleanup failed') },
+      }],
+    })
+    const runtime = new TourRuntime([definition], adapter({ end }))
+    const tour = runtime.controller(definition)
+
+    await tour.start()
+    await expect(tour.cancel()).rejects.toThrow('cleanup failed')
+
+    expect(end).toHaveBeenCalledWith('cancelled')
+    expect(tour.isActive.value).toBe(false)
+    expect(tour.currentStep.value).toBeNull()
   })
 })

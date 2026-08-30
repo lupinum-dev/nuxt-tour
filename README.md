@@ -9,8 +9,8 @@
 </p>
 
 > [!IMPORTANT]
-> Nuxt Tour is preparing its first public release. The API is implemented and
-> tested, but `0.1.0` is not published to npm yet.
+> Nuxt Tour is preparing its first public release. Install from a package
+> preview until `0.1.0` is published to npm.
 
 ## Why Nuxt Tour?
 
@@ -44,6 +44,7 @@ export default defineTour({
   steps: [
     {
       id: 'welcome',
+      title: 'Welcome',
       content: 'Let’s take a quick look around.',
     },
     {
@@ -59,11 +60,11 @@ export default defineTour({
 
 ```vue
 <script setup lang="ts">
-const onboarding = useTour('onboarding')
+const onboarding = useNuxtTour('onboarding')
 </script>
 
 <template>
-  <button data-tour-target="create-project">
+  <button v-tour-target="'create-project'">
     Create project
   </button>
 
@@ -75,9 +76,9 @@ const onboarding = useTour('onboarding')
 </template>
 ```
 
-Nuxt discovers definitions in `app/tours`, auto-imports the composables, and
-generates literal tour and step ID types. Add one `<TourHost />` near the root of
-the application.
+Nuxt discovers definitions from each layer's `app/tours`, auto-imports the
+composables, and generates literal tour, step, and semantic target ID types. Add
+one `<TourHost />` near the root of the application.
 
 For plain Vue, import the runtime from `@lupinum/nuxt-tour/vue` and install
 `createTourPlugin({ tours: [...] })`. Import `@lupinum/nuxt-tour/style.css` for
@@ -91,7 +92,7 @@ targets, route-aware steps, interaction modes, events, and errors.
 
 ## Requirements
 
-- Node.js 22.14 or later, Node.js 24, or Node.js 26.
+- Node.js 22.19 or later, Node.js 24.11 or later, or Node.js 26.
 - Nuxt 4 for the Nuxt module.
 - Vue 3.3 or later for the Vue runtime.
 - pnpm 11 for repository development.

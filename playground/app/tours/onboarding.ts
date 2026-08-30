@@ -22,5 +22,19 @@ export default defineTour({
       content: 'Nuxt Tour waits for the destination page and target before it shows the card.',
       placement: 'bottom-start',
     },
+    {
+      id: 'project-insights',
+      target: 'project-insights',
+      title: 'Long travel stays responsive',
+      content: 'Native scrolling adapts to the distance. The spotlight opens as this section approaches its final position.',
+      placement: 'top-start',
+    },
+    {
+      id: 'return-to-create',
+      target: 'create-project',
+      title: 'Previous and next stay symmetrical',
+      content: 'The same centering and reveal rules apply when the tour moves back up the page.',
+      placement: 'bottom-start',
+    },
   ],
 })

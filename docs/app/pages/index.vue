@@ -1,10 +1,20 @@
 <script setup lang="ts">
 defineOptions({ name: 'TourLandingPage' })
 
-const tour = useTour('docs-demo')
+const tour = useNuxtTour('docs-demo')
 const copied = ref(false)
 const errorMessage = ref('')
 const installCommand = 'pnpm add @lupinum/nuxt-tour'
+const codeExample = defineTour({
+  id: 'onboarding',
+  steps: [{
+    id: 'create-project',
+    route: '/projects',
+    target: 'new-project',
+    title: 'Create your first project',
+    content: 'Start here to create a project and invite your team.',
+  }],
+})
 
 useSeoMeta({
   title: 'Nuxt Tour — Guided tours that feel native to Nuxt',
@@ -120,6 +130,55 @@ async function copyInstall(): Promise<void> {
       <TourDemo />
     </section>
 
+    <section
+      v-tour-target="'demo-recipes'"
+      class="recipe-section"
+    >
+      <div>
+        <h2>From first tour to product-ready patterns.</h2>
+        <p>
+          Run focused recipes for rich media, live controls, Vue refs, route changes, conditional steps, and custom cards.
+        </p>
+        <NuxtLink to="/docs/recipes">
+          Open the interactive recipe lab
+          <Icon
+            name="lucide:arrow-right"
+            aria-hidden="true"
+          />
+        </NuxtLink>
+      </div>
+      <ul aria-label="Available recipe topics">
+        <li>
+          <Icon
+            name="lucide:image"
+            aria-hidden="true"
+          />
+          Images and Vue components
+        </li>
+        <li>
+          <Icon
+            name="lucide:route"
+            aria-hidden="true"
+          />
+          Routes and dynamic targets
+        </li>
+        <li>
+          <Icon
+            name="lucide:mouse-pointer-click"
+            aria-hidden="true"
+          />
+          Interaction and focus
+        </li>
+        <li>
+          <Icon
+            name="lucide:palette"
+            aria-hidden="true"
+          />
+          Themes and custom cards
+        </li>
+      </ul>
+    </section>
+
     <section class="api-section">
       <div>
         <h2>Small API. Serious runtime.</h2>
@@ -136,11 +195,13 @@ async function copyInstall(): Promise<void> {
       </div>
       <pre aria-label="Nuxt Tour code example"><code><span class="code-muted">// app/tours/onboarding.ts</span>
 <span class="code-keyword">export default</span> defineTour({
-  id: <span class="code-string">'onboarding'</span>,
+  id: <span class="code-string">'{{ codeExample.id }}'</span>,
   steps: [{
-    id: <span class="code-string">'create-project'</span>,
-    route: <span class="code-string">'/projects'</span>,
-    target: <span class="code-string">'new-project'</span>,
+    id: <span class="code-string">'{{ codeExample.steps[0].id }}'</span>,
+    route: <span class="code-string">'{{ codeExample.steps[0].route }}'</span>,
+    target: <span class="code-string">'{{ codeExample.steps[0].target }}'</span>,
+    title: <span class="code-string">'{{ codeExample.steps[0].title }}'</span>,
+    content: <span class="code-string">'{{ codeExample.steps[0].content }}'</span>,
   }],
 })</code></pre>
     </section>
@@ -155,6 +216,7 @@ async function copyInstall(): Promise<void> {
 
 .hero,
 .demo-section,
+.recipe-section,
 .api-section {
   width: min(100% - 2.5rem, 72rem);
   margin-inline: auto;
@@ -308,6 +370,73 @@ async function copyInstall(): Promise<void> {
   padding-block: 1rem clamp(6rem, 11vw, 9rem);
 }
 
+.recipe-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  align-items: center;
+  gap: clamp(3rem, 8vw, 7rem);
+  padding-block: clamp(5rem, 9vw, 8rem);
+  border-top: 1px solid var(--border);
+}
+
+.recipe-section h2 {
+  max-width: 15ch;
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.recipe-section p {
+  max-width: 40rem;
+  margin: 1.25rem 0 0;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+
+.recipe-section a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1.5rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-underline-offset: 0.25rem;
+}
+
+.recipe-section a svg {
+  width: 1rem;
+}
+
+.recipe-section ul {
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--border);
+  list-style: none;
+}
+
+.recipe-section li {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: 0.8rem;
+  border-block-end: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.recipe-section li:last-child {
+  border-block-end: 0;
+}
+
+.recipe-section li svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--primary);
+}
+
 .api-section {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(25rem, 1.2fr);
@@ -396,6 +525,10 @@ async function copyInstall(): Promise<void> {
     grid-template-columns: 1fr;
   }
 
+  .recipe-section {
+    grid-template-columns: 1fr;
+  }
+
   .api-section pre {
     max-width: calc(100vw - 2.5rem);
   }
@@ -408,6 +541,7 @@ async function copyInstall(): Promise<void> {
 @media (max-width: 480px) {
   .hero,
   .demo-section,
+  .recipe-section,
   .api-section {
     width: min(100% - 2rem, 72rem);
   }
