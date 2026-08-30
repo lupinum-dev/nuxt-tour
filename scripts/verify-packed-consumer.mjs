@@ -73,13 +73,16 @@ function readArgument(name) {
 }
 
 function run(command, arguments_, fallbackMessage) {
-  const result = spawnSync(command, arguments_, {
+  const executable = process.platform === 'win32' && (command === 'npm' || command === 'npx')
+    ? `${command}.cmd`
+    : command
+  const result = spawnSync(executable, arguments_, {
     cwd: consumer,
     encoding: 'utf8',
     env: { ...process.env, npm_config_cache: process.env.npm_config_cache ?? resolve('.npm-cache') },
   })
   if (result.status !== 0) {
-    const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim()
+    const output = [result.stdout, result.stderr, result.error?.message].filter(Boolean).join('\n').trim()
     throw new Error(output || fallbackMessage)
   }
 }
