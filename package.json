@@ -66,7 +66,7 @@
     "dev": "pnpm dev:prepare && nuxt dev playground",
     "dev:build": "pnpm dev:prepare && nuxt build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
-    "docs:build": "pnpm --dir docs build",
+    "docs:build": "nuxt-module-build prepare && pnpm --dir docs build",
     "docs:dev": "pnpm --dir docs dev",
     "docs:typecheck": "pnpm --dir docs typecheck",
     "lint": "eslint .",
