@@ -283,10 +283,10 @@ jobs:
           test "$tag_type" = commit
           test "$tag_sha" = "$GITHUB_SHA"
           if test "$release_exists" = true; then
-            gh release upload "v$RELEASE_VERSION" "$tarball" release.json SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "v$RELEASE_VERSION" "$tarball" release.json SHA256SUMS CHANGELOG.md release-notes.md --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --title "v$RELEASE_VERSION" --notes-file github-release-notes.md "${prerelease_edit[@]}"
           else
-            gh release create "v$RELEASE_VERSION" "$tarball" release.json SHA256SUMS --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$RELEASE_VERSION" --notes-file github-release-notes.md "${prerelease[@]}"
+            gh release create "v$RELEASE_VERSION" "$tarball" release.json SHA256SUMS CHANGELOG.md release-notes.md --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$RELEASE_VERSION" --notes-file github-release-notes.md "${prerelease[@]}"
           fi
           asset_dir="$(mktemp -d)"
           gh release download "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --pattern '*.tgz' --dir "$asset_dir"
