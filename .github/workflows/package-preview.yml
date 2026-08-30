@@ -32,6 +32,12 @@ jobs:
         env:
           RELEASE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: pnpm preview:pack
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: package-preview-${{ github.run_id }}
+          path: .preview-artifacts
+          if-no-files-found: error
+          retention-days: 14
       - id: publish
         run: pnpm exec pkg-pr-new publish --no-compact --comment=update --commentWithSha --no-template --packageManager=pnpm,npm .preview-artifacts/*.tgz
       - name: Verify hosted URL and bytes
@@ -40,9 +46,3 @@ jobs:
           PREVIEW_URLS: ${{ steps.publish.outputs.urls }}
           SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/verify-preview.mjs "${{ steps.artifact.outputs.manifest }}"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: package-preview-${{ github.run_id }}
-          path: .preview-artifacts
-          if-no-files-found: error
-          retention-days: 14
