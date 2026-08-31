@@ -1,20 +1,57 @@
 <script setup lang="ts">
+import SiteHeroCode from '#ginko-docs/components/site/SiteHeroCode.vue'
+
 defineOptions({ name: 'TourLandingPage' })
 
 const tour = useNuxtTour('docs-demo')
 const copied = ref(false)
 const errorMessage = ref('')
 const installCommand = 'pnpm add @lupinum/nuxt-tour'
-const codeExample = defineTour({
+const scriptCloseTag = `</${'script'}>`
+const heroCodeTabs = [
+  {
+    label: 'Tour',
+    icon: 'lucide:map',
+    filename: 'app/tours/onboarding.ts',
+    language: 'ts',
+    code: `export default defineTour({
   id: 'onboarding',
   steps: [{
     id: 'create-project',
     route: '/projects',
     target: 'new-project',
     title: 'Create your first project',
-    content: 'Start here to create a project and invite your team.',
+    content: 'Start here, then invite your team.',
   }],
-})
+})`,
+  },
+  {
+    label: 'Target',
+    icon: 'lucide:scan',
+    filename: 'app/pages/projects.vue',
+    language: 'vue',
+    code: `<template>
+  <button v-tour-target="'new-project'">
+    New project
+  </button>
+</template>`,
+  },
+  {
+    label: 'Start',
+    icon: 'lucide:play',
+    filename: 'app/components/WelcomeButton.vue',
+    language: 'vue',
+    code: `<script setup lang="ts">
+const onboarding = useNuxtTour('onboarding')
+${scriptCloseTag}
+
+<template>
+  <button @click="onboarding.start()">
+    Show me around
+  </button>
+</template>`,
+  },
+]
 
 useSeoMeta({
   title: 'Nuxt Tour — Guided tours that feel native to Nuxt',
@@ -95,34 +132,8 @@ async function copyInstall(): Promise<void> {
         </p>
       </div>
 
-      <div
-        class="hero-proof"
-        aria-label="Nuxt Tour qualities"
-      >
-        <div>
-          <Icon
-            name="lucide:route"
-            aria-hidden="true"
-          />
-          <strong>Route-aware</strong>
-          <span>Waits for Nuxt navigation and late targets.</span>
-        </div>
-        <div>
-          <Icon
-            name="lucide:braces"
-            aria-hidden="true"
-          />
-          <strong>Fully typed</strong>
-          <span>Tour and step IDs inferred from app/tours.</span>
-        </div>
-        <div>
-          <Icon
-            name="lucide:accessibility"
-            aria-hidden="true"
-          />
-          <strong>Accessible</strong>
-          <span>Focus, keyboard, contrast, and motion handled.</span>
-        </div>
+      <div class="hero-code">
+        <SiteHeroCode :tabs="heroCodeTabs" />
       </div>
     </section>
 
@@ -178,33 +189,6 @@ async function copyInstall(): Promise<void> {
         </li>
       </ul>
     </section>
-
-    <section class="api-section">
-      <div>
-        <h2>Small API. Serious runtime.</h2>
-        <p>
-          Define the journey once. Nuxt discovers it, generates the types, registers the host, and handles navigation.
-        </p>
-        <NuxtLink to="/docs/design/public-api">
-          Explore the complete API
-          <Icon
-            name="lucide:arrow-right"
-            aria-hidden="true"
-          />
-        </NuxtLink>
-      </div>
-      <pre aria-label="Nuxt Tour code example"><code><span class="code-muted">// app/tours/onboarding.ts</span>
-<span class="code-keyword">export default</span> defineTour({
-  id: <span class="code-string">'{{ codeExample.id }}'</span>,
-  steps: [{
-    id: <span class="code-string">'{{ codeExample.steps[0].id }}'</span>,
-    route: <span class="code-string">'{{ codeExample.steps[0].route }}'</span>,
-    target: <span class="code-string">'{{ codeExample.steps[0].target }}'</span>,
-    title: <span class="code-string">'{{ codeExample.steps[0].title }}'</span>,
-    content: <span class="code-string">'{{ codeExample.steps[0].content }}'</span>,
-  }],
-})</code></pre>
-    </section>
   </main>
 </template>
 
@@ -216,8 +200,7 @@ async function copyInstall(): Promise<void> {
 
 .hero,
 .demo-section,
-.recipe-section,
-.api-section {
+.recipe-section {
   width: min(100% - 2.5rem, 72rem);
   margin-inline: auto;
 }
@@ -225,17 +208,17 @@ async function copyInstall(): Promise<void> {
 .hero {
   display: grid;
   min-height: 36rem;
-  grid-template-columns: minmax(0, 1.3fr) minmax(17rem, 0.7fr);
+  grid-template-columns: minmax(0, 1fr) minmax(28rem, 0.95fr);
   align-items: center;
-  gap: clamp(3rem, 8vw, 7rem);
+  gap: clamp(3rem, 6vw, 5rem);
   padding-block: clamp(4.5rem, 8vw, 6.5rem);
 }
 
 .hero h1 {
-  max-width: 12ch;
+  max-width: 11ch;
   margin: 0;
-  font-size: clamp(3.25rem, 7vw, 6rem);
-  line-height: 0.95;
+  font-size: clamp(3.25rem, 5.5vw, 4.75rem);
+  line-height: 0.96;
   letter-spacing: -0.04em;
   text-wrap: balance;
 }
@@ -330,40 +313,9 @@ async function copyInstall(): Promise<void> {
   font-size: 0.875rem !important;
 }
 
-.hero-proof {
-  display: grid;
-  gap: 0;
-  border-block: 1px solid var(--border);
-}
-
-.hero-proof > div {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.9rem;
-  padding: 1.4rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.hero-proof > div:last-child {
-  border-bottom: 0;
-}
-
-.hero-proof svg {
-  width: 1.1rem;
-  height: 1.1rem;
-  grid-row: span 2;
-  margin-top: 0.15rem;
-  color: var(--primary);
-}
-
-.hero-proof strong {
-  font-size: 0.875rem;
-}
-
-.hero-proof span {
-  color: var(--muted-foreground);
-  font-size: 0.78rem;
-  line-height: 1.5;
+.hero-code {
+  min-width: 0;
+  width: 100%;
 }
 
 .demo-section {
@@ -437,61 +389,6 @@ async function copyInstall(): Promise<void> {
   color: var(--primary);
 }
 
-.api-section {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(25rem, 1.2fr);
-  align-items: center;
-  gap: clamp(3rem, 8vw, 7rem);
-  padding-block: clamp(5rem, 9vw, 8rem);
-  border-top: 1px solid var(--border);
-}
-
-.api-section h2 {
-  max-width: 10ch;
-  margin: 0;
-  font-size: clamp(2.25rem, 5vw, 4rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-.api-section p {
-  max-width: 36rem;
-  margin: 1.25rem 0 0;
-  color: var(--muted-foreground);
-  line-height: 1.7;
-}
-
-.api-section a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-top: 1.5rem;
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-underline-offset: 0.25rem;
-}
-
-.api-section a svg {
-  width: 1rem;
-}
-
-.api-section pre {
-  overflow-x: auto;
-  margin: 0;
-  padding: clamp(1.25rem, 3vw, 2rem);
-  border-radius: 1rem;
-  background: #17171a;
-  color: #ececf0;
-  font-size: clamp(0.75rem, 1.7vw, 0.875rem);
-  line-height: 1.8;
-  scrollbar-color: #4a4a52 transparent;
-}
-
-.code-muted { color: #85858f; }
-.code-keyword { color: #a8b6ff; }
-.code-string { color: #bfe4b7; }
-
 .landing :is(button, a):focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 3px;
@@ -521,28 +418,15 @@ async function copyInstall(): Promise<void> {
     font-size: clamp(3rem, 14vw, 5rem);
   }
 
-  .api-section {
-    grid-template-columns: 1fr;
-  }
-
   .recipe-section {
     grid-template-columns: 1fr;
-  }
-
-  .api-section pre {
-    max-width: calc(100vw - 2.5rem);
-  }
-
-  .hero-proof {
-    display: none;
   }
 }
 
 @media (max-width: 480px) {
   .hero,
   .demo-section,
-  .recipe-section,
-  .api-section {
+  .recipe-section {
     width: min(100% - 2rem, 72rem);
   }
 

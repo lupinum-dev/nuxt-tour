@@ -1,4 +1,5 @@
 node_modules
+.ginko
 .pnpm-store
 .npm-cache
 dist
