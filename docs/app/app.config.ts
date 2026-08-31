@@ -1,10 +1,16 @@
 export default defineAppConfig({
   ginkoDocs: {
+    theme: {
+      neutral: 'custom',
+      primary: 'custom',
+      codeBlocks: 'adaptive',
+    },
     site: {
       url: 'https://nuxt-tour.lupinum.com',
       name: { en: 'Nuxt Tour' },
       description: { en: 'Build accessible, route-aware product tours with a Vue-native API and Nuxt-first developer experience.' },
-      logo: { light: '/icon.svg', dark: '/icon.svg' },
+      logo: { light: '/logo-light.svg', dark: '/logo-dark.svg' },
+      docsSidebarSwitcher: 'tabs',
       legalLinks: [
         { label: { en: 'Legal notice' }, to: 'https://lupinum.com/impressum' },
         { label: { en: 'Privacy' }, to: 'https://lupinum.com/datenschutz' },

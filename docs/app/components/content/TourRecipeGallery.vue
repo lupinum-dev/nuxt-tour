@@ -217,7 +217,7 @@ async function copyRecipe(): Promise<void> {
 
 <style scoped>
 .recipe-lab {
-  --recipe-accent: #0f766e;
+  --recipe-accent: var(--nuxt-green-700);
   margin-block: 2.5rem;
   color: var(--foreground);
 }
@@ -259,8 +259,8 @@ async function copyRecipe(): Promise<void> {
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 999px;
-  background: #10b981;
-  box-shadow: 0 0.25rem 0.75rem rgb(16 185 129 / 35%);
+  background: var(--nuxt-green-400);
+  box-shadow: 0 0.25rem 0.75rem rgb(0 220 130 / 28%);
 }
 
 .recipe-shell {
@@ -601,7 +601,7 @@ async function copyRecipe(): Promise<void> {
 
   .recipe-stage-toolbar > button:hover:not(:disabled),
   :deep(.programmatic-preview button:hover) {
-    background: #115e59;
+    background: var(--nuxt-green-800);
   }
 }
 
@@ -672,7 +672,7 @@ async function copyRecipe(): Promise<void> {
 
 @media (prefers-color-scheme: dark) {
   .recipe-lab {
-    --recipe-accent: #5eead4;
+    --recipe-accent: var(--nuxt-green-400);
   }
 
   .recipe-shell > nav button[aria-current='true'],
@@ -683,11 +683,11 @@ async function copyRecipe(): Promise<void> {
 
 :global(.dark) .recipe-lab,
 :global([data-theme='dark']) .recipe-lab {
-  --recipe-accent: #5eead4;
+  --recipe-accent: var(--nuxt-green-400);
 }
 
 :global(.light) .recipe-lab,
 :global([data-theme='light']) .recipe-lab {
-  --recipe-accent: #0f766e;
+  --recipe-accent: var(--nuxt-green-700);
 }
 </style>

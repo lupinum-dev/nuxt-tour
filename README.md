@@ -1,4 +1,10 @@
-<p align="center"><img src="docs/public/icon.svg" width="128" alt="Nuxt Tour icon"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/public/icon-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/public/icon-light.svg">
+    <img src="docs/public/icon-light.svg" width="128" alt="Nuxt Tour icon">
+  </picture>
+</p>
 <h1 align="center">Nuxt Tour</h1>
 <p align="center">Build accessible, route-aware product tours with a Vue-native API and Nuxt-first developer experience.</p>
 

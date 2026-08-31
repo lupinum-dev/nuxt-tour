@@ -54,7 +54,12 @@ function createTourInstallation(options: TourPluginOptions) {
 
 async function flushTour(): Promise<void> {
   await nextTick()
-  await new Promise(resolve => setTimeout(resolve, 0))
+  // TourHost intentionally holds its covered, positioned state through a
+  // browser paint before revealing. Advance enough frames to settle either a
+  // targeted or centered step without replacing that production behaviour.
+  for (let frame = 0; frame < 4; frame += 1) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  }
   await nextTick()
 }
 

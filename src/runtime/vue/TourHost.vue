@@ -184,6 +184,12 @@ function run(command: (() => Promise<void>) | undefined): void {
   })
 }
 
+async function waitForAnimationFrames(count: number): Promise<void> {
+  for (let frame = 0; frame < count; frame += 1) {
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  }
+}
+
 function closeTour(): void {
   run(() => controller.value?.cancel('close-button') ?? Promise.resolve())
 }
@@ -266,12 +272,17 @@ watch(
       // Floating UI calculates asynchronously. Keep the card hidden until its
       // first real coordinates have reached the DOM, so it never flashes at 0,0.
       if (current.target) {
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        await waitForAnimationFrames(1)
       }
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
       positionReady.value = true
       await nextTick()
+      if (presentation.value?.transitionId !== current.transitionId) return
+      // A Vue DOM flush does not guarantee that the browser painted the
+      // covered spotlight and hidden card. Keep that starting state for one
+      // real frame so the following CSS transitions cannot be skipped.
+      await waitForAnimationFrames(2)
       if (presentation.value?.transitionId !== current.transitionId) return
       runtime.reveal(current.transitionId)
       await nextTick()
@@ -321,7 +332,7 @@ onBeforeUnmount(() => {
     >
       <div
         data-tour-part="overlay"
-        :data-centered="visualPhase === 'covering' || (visualPhase === 'moving' && !targetRect) || (presentation && (!visualTarget || !targetRect)) ? '' : undefined"
+        :data-centered="!visualTarget || !targetRect ? '' : undefined"
         aria-hidden="true"
       />
 

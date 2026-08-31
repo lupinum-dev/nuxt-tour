@@ -29,6 +29,90 @@ async function waitForScrollSettlement(page: Page): Promise<void> {
   }))
 }
 
+interface TourPaintSample {
+  stepId: string | null
+  phase: string | null
+  overlayShaded: boolean
+  spotlightShaded: boolean
+  cardOpacity: number | null
+  spotlightCoverOpacity: number | null
+}
+
+async function startTourPaintSampling(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const state = window as typeof window & {
+      __tourPaintSamples?: TourPaintSample[]
+      __tourPaintSampling?: boolean
+    }
+    state.__tourPaintSamples = []
+    state.__tourPaintSampling = true
+
+    const sample = () => {
+      if (!state.__tourPaintSampling) return
+      const root = document.querySelector<HTMLElement>('[data-tour-part="root"]')
+      const overlay = root?.querySelector<HTMLElement>('[data-tour-part="overlay"]')
+      const spotlight = root?.querySelector<HTMLElement>('[data-tour-part="spotlight"]')
+      const positioner = root?.querySelector<HTMLElement>('[data-tour-part="positioner"]')
+      const overlayStyle = overlay ? getComputedStyle(overlay) : null
+      const spotlightStyle = spotlight ? getComputedStyle(spotlight) : null
+
+      state.__tourPaintSamples?.push({
+        stepId: root?.getAttribute('data-tour-step-id') ?? null,
+        phase: root?.getAttribute('data-visual-phase') ?? null,
+        overlayShaded: Boolean(
+          overlayStyle && overlayStyle.backgroundColor !== 'rgba(0, 0, 0, 0)',
+        ),
+        spotlightShaded: Boolean(
+          spotlightStyle && spotlightStyle.visibility !== 'hidden' && spotlightStyle.boxShadow !== 'none',
+        ),
+        cardOpacity: positioner ? Number.parseFloat(getComputedStyle(positioner).opacity) : null,
+        spotlightCoverOpacity: spotlight
+          ? Number.parseFloat(getComputedStyle(spotlight, '::after').opacity)
+          : null,
+      })
+      requestAnimationFrame(sample)
+    }
+
+    requestAnimationFrame(sample)
+  })
+}
+
+async function stopTourPaintSampling(page: Page): Promise<TourPaintSample[]> {
+  return page.evaluate(() => {
+    const state = window as typeof window & {
+      __tourPaintSamples?: TourPaintSample[]
+      __tourPaintSampling?: boolean
+    }
+    state.__tourPaintSampling = false
+    return state.__tourPaintSamples ?? []
+  })
+}
+
+async function waitForAnimationFrames(page: Page, count: number): Promise<void> {
+  await page.evaluate(frames => new Promise<void>((resolve) => {
+    let remaining = frames
+    const next = () => {
+      remaining -= 1
+      if (remaining <= 0) resolve()
+      else requestAnimationFrame(next)
+    }
+    requestAnimationFrame(next)
+  }), count)
+}
+
+function expectPaintedReveal(samples: TourPaintSample[], stepId: string): void {
+  const revealSamples = samples.filter(sample => sample.stepId === stepId)
+  expect(samples.some(sample => sample.overlayShaded && sample.spotlightShaded)).toBe(false)
+  expect(revealSamples.some(sample => (
+    sample.cardOpacity !== null && sample.cardOpacity > 0.05 && sample.cardOpacity < 0.95
+  ))).toBe(true)
+  expect(revealSamples.some(sample => (
+    sample.spotlightCoverOpacity !== null
+    && sample.spotlightCoverOpacity > 0.05
+    && sample.spotlightCoverOpacity < 0.95
+  ))).toBe(true)
+}
+
 test('the documentation is interactive, responsive, and dark-mode aware', async ({ page, goto }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -38,6 +122,9 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
 
   await goto('/', { waitUntil: 'hydration' })
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Show people around')
+  const footerHomeLink = page.locator('footer a[href="/"][aria-label="Nuxt Tour"]')
+  await expect(footerHomeLink).toHaveCount(1)
+  await expect(footerHomeLink.locator(':scope > span')).toHaveCount(1)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('smooth')
   await page.evaluate(() => {
@@ -115,6 +202,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       }
     }, { capture: true })
   })
+  await startTourPaintSampling(page)
   await page.getByRole('button', { name: 'Try the live tour' }).click()
 
   const root = page.locator('[data-tour-part="root"]')
@@ -122,6 +210,8 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   const positioner = page.locator('[data-tour-part="positioner"]')
   await expect(positioner).toHaveAttribute('data-positioned', '')
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  await waitForAnimationFrames(page, 4)
+  expectPaintedReveal(await stopTourPaintSampling(page), 'workspace')
   expect(await page.evaluate(() => {
     const state = window as typeof window & {
       __tourInitialScrollSeen?: boolean
@@ -329,9 +419,12 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       }
     }, { capture: true })
   })
+  await startTourPaintSampling(page)
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(root).toHaveAttribute('data-tour-step-id', 'recipes')
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  await waitForAnimationFrames(page, 4)
+  expectPaintedReveal(await stopTourPaintSampling(page), 'recipes')
   expect(await page.evaluate(() => {
     const state = window as typeof window & {
       __tourBackdropMissingWhileRelocating?: boolean
