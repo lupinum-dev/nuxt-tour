@@ -1,0 +1,13 @@
+/* Product-specific tour colors. The shared Nuxt visual system comes from Ginko Docs. */
+[data-tour-part='root'] {
+  --tour-accent: var(--nuxt-green-700);
+  --tour-accent-hover: var(--nuxt-green-800);
+  --tour-focus: var(--nuxt-green-600);
+}
+
+.dark [data-tour-part='root'] {
+  --tour-accent: var(--nuxt-green-400);
+  --tour-accent-hover: var(--nuxt-green-300);
+  --tour-accent-contrast: var(--nuxt-green-950);
+  --tour-focus: var(--nuxt-green-400);
+}
