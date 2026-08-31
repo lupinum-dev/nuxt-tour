@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1
+
+- Eliminate spotlight flicker by painting the covered transition state before revealing each target.
+- Add continuous-frame browser regression tests for initial and relocating tour steps.
+- Align the interactive documentation with the shared Lupinum Nuxt library theme and current docs runtime.
+
 ## v0.1.0
 
 - Add the accessible, route-aware tour runtime for Nuxt 4 and Vue 3.
