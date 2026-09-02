@@ -91,9 +91,9 @@ async function copyInstall(): Promise<void> {
             Accessible, route-aware product tours with typed definitions, semantic targets, and defaults you can trust.
           </p>
           <div class="mt-10 flex flex-wrap items-center gap-3">
-            <button
+            <Button
               type="button"
-              class="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-5 text-sm font-semibold text-brand-foreground transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+              class="h-11 px-5 font-semibold"
               @click="startDemo"
             >
               <Icon
@@ -102,18 +102,21 @@ async function copyInstall(): Promise<void> {
                 aria-hidden="true"
               />
               Try the live tour
-            </button>
-            <NuxtLink
-              to="/docs"
-              class="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-background px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            </Button>
+            <Button
+              as-child
+              variant="outline"
+              class="h-11 px-5 font-semibold"
             >
-              Read the guide
-              <Icon
-                name="lucide:arrow-right"
-                class="size-4"
-                aria-hidden="true"
-              />
-            </NuxtLink>
+              <NuxtLink to="/docs">
+                Read the guide
+                <Icon
+                  name="lucide:arrow-right"
+                  class="size-4"
+                  aria-hidden="true"
+                />
+              </NuxtLink>
+            </Button>
           </div>
           <div class="mt-5">
             <div class="inline-flex h-10 max-w-full items-center gap-3 rounded-md border border-border bg-muted/40 pr-1.5 pl-4 font-mono text-[13px] text-foreground/90">
