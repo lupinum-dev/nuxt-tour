@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SiteHeroCode from '#ginko-docs/components/site/SiteHeroCode.vue'
+import { Button } from '#ginko-docs/components/ui/button'
 
 defineOptions({ name: 'TourLandingPage' })
 

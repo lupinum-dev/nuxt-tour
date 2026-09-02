@@ -259,8 +259,8 @@ function createProject(): void {
   padding: 0.65rem 1rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--brand);
+  color: var(--brand-foreground);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 700;
@@ -391,7 +391,7 @@ function createProject(): void {
 }
 
 .demo-profile > span {
-  background: color-mix(in oklab, var(--primary) 18%, var(--muted));
+  background: color-mix(in oklab, var(--brand) 18%, var(--muted));
   color: var(--foreground);
 }
 
@@ -595,7 +595,7 @@ function createProject(): void {
 }
 
 .tour-demo :is(button, a):focus-visible {
-  outline: 3px solid var(--primary);
+  outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
 

@@ -6,10 +6,11 @@ const rootDir = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const docsDir = resolve(rootDir, 'docs')
 const failures = []
 
-const [appConfig, nuxtConfig, tourCss, packageSource] = await Promise.all([
+const [appConfig, nuxtConfig, tourCss, tourDemo, packageSource] = await Promise.all([
   readFile(resolve(docsDir, 'app/app.config.ts'), 'utf8'),
   readFile(resolve(docsDir, 'nuxt.config.ts'), 'utf8'),
   readFile(resolve(docsDir, 'app/assets/css/tour.css'), 'utf8'),
+  readFile(resolve(docsDir, 'app/components/content/TourDemo.vue'), 'utf8'),
   readFile(resolve(docsDir, 'package.json'), 'utf8'),
 ])
 const docsPackage = JSON.parse(packageSource)
@@ -27,6 +28,16 @@ requireMatch(
   appConfig,
   /codeBlocks:\s*['"]adaptive['"]/,
   'app.config.ts must use adaptive code blocks.',
+)
+requireMatch(
+  appConfig,
+  /nav:\s*\{[^}]*socialIcons:\s*true[^}]*\}/s,
+  'app.config.ts must show the configured GitHub and Discord links in the header.',
+)
+requireMatch(
+  appConfig,
+  /icon:\s*['"]\/favicon\.svg['"]/,
+  'app.config.ts must use the generated Nuxt Tour favicon.',
 )
 
 if (/\b(?:neutral|primary):\s*['"]custom['"]/.test(appConfig)) {
@@ -49,6 +60,9 @@ if (copiedThemeExists) {
 
 if (/--nuxt-green-\d+\s*:/.test(tourCss)) {
   failures.push('tour.css may consume Nuxt tokens but must not define the shared palette.')
+}
+if (!/background:\s*var\(--brand\)/.test(tourDemo)) {
+  failures.push('TourDemo.vue must use the shared Nuxt brand token for filled controls.')
 }
 
 if (docsPackage.dependencies?.['@lupinum/ginko-docs'] !== '0.4.0-rc.5') {
