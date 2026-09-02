@@ -86,8 +86,8 @@ importers:
         specifier: 1.0.0-beta.5
         version: 1.0.0-beta.5(1323c8d145a5bf249ac3a0ea232c245c)
       '@lupinum/ginko-docs':
-        specifier: 0.4.0-rc.5
-        version: 0.4.0-rc.5(8e4e17259315567765cb5503575f5e9f)
+        specifier: 0.4.0-rc.8
+        version: 0.4.0-rc.8(8e4e17259315567765cb5503575f5e9f)
       nuxt:
         specifier: 4.5.2
         version: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.147.0)(@types/node@26.1.1)(@vue/compiler-sfc@3.5.42)(commander@14.0.3)(db0@0.3.4)(esbuild@0.28.2)(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(magicast@0.5.4)(optionator@0.9.4)(oxc-parser@0.143.0)(rolldown@1.2.6)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.6)(rollup@4.63.1))(rollup@4.63.1)(srvx@0.12.7)(supports-color@10.2.2)(terser@5.51.2)(typescript@5.9.3)(vite@8.2.2(@types/node@26.1.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))(vue-tsc@3.3.11(typescript@5.9.3))(yaml@2.9.0)
@@ -1077,9 +1077,10 @@ packages:
       vitest:
         optional: true
 
-  '@lupinum/ginko-docs@0.4.0-rc.5':
-    resolution: {integrity: sha512-ooi6uSV3qDoYpqnkvQPmJAONQF6KYYzEyZwxmZi/h9cNxTyWBVqG1laWy4hSFHW55wP5CBdUukZo4sHufGcjuQ==}
+  '@lupinum/ginko-docs@0.4.0-rc.8':
+    resolution: {integrity: sha512-Z6ycQLTHh5KBWx+pIc40F6jc5jUpOSk5mmgI4aWJoTb7NEU74Jlqmjll3bqXfz0rX459yz0ilPMFXJs/FvdUSA==}
     engines: {node: ^22.18.0 || ^24.11.0 || >=26.0.0}
+    hasBin: true
     peerDependencies:
       '@lupinum/ginko-content': '>=1.0.0-beta.5 <2.0.0'
       nuxt: '>=4.5.1 <5'
@@ -7444,8 +7445,7 @@ snapshots:
       '@iconify/types': 2.0.0
       vue: 3.5.42(typescript@5.9.3)
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.4':
     optionalDependencies:
@@ -7767,7 +7767,7 @@ snapshots:
       - webpack
       - xml2js
 
-  '@lupinum/ginko-docs@0.4.0-rc.5(8e4e17259315567765cb5503575f5e9f)':
+  '@lupinum/ginko-docs@0.4.0-rc.8(8e4e17259315567765cb5503575f5e9f)':
     dependencies:
       '@iconify-json/circle-flags': 1.2.10
       '@iconify-json/logos': 1.2.13
@@ -7793,9 +7793,10 @@ snapshots:
       motion-v: 2.4.0(@vueuse/core@14.4.0(vue@3.5.42(typescript@5.9.3)))(vue@3.5.42(typescript@5.9.3))
       nitropack: 2.13.4(oxc-parser@0.143.0)(rolldown@1.2.6)(srvx@0.12.7)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.1.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))
       nuxt: 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@oxc-project/types@0.147.0)(@types/node@26.1.1)(@vue/compiler-sfc@3.5.42)(commander@14.0.3)(db0@0.3.4)(esbuild@0.28.2)(eslint@10.9.1(jiti@2.7.0)(supports-color@10.2.2))(ioredis@5.11.1(supports-color@10.2.2))(lightningcss@1.33.0)(magicast@0.5.4)(optionator@0.9.4)(oxc-parser@0.143.0)(rolldown@1.2.6)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.6)(rollup@4.63.1))(rollup@4.63.1)(srvx@0.12.7)(supports-color@10.2.2)(terser@5.51.2)(typescript@5.9.3)(vite@8.2.2(@types/node@26.1.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))(vue-tsc@3.3.11(typescript@5.9.3))(yaml@2.9.0)
-      nuxt-og-image: 6.7.8(38b2826429e53933be32660441f3504c)
+      nuxt-og-image: 6.7.8(7d129a00a95ddef8bac1f3248bb31b27)
       reka-ui: 2.10.4(vue@3.5.42(typescript@5.9.3))
       satori: 0.19.3
+      sharp: 0.35.4(@types/node@26.1.1)
       shiki: 4.4.3
       tailwind-merge: 3.6.0
       tailwindcss: 4.3.3
@@ -7872,7 +7873,6 @@ snapshots:
       - rolldown
       - rollup
       - secure-exec
-      - sharp
       - sqlite3
       - srvx
       - supports-color
@@ -12521,7 +12521,7 @@ snapshots:
 
   nuxt-define@1.0.0: {}
 
-  nuxt-og-image@6.7.8(38b2826429e53933be32660441f3504c):
+  nuxt-og-image@6.7.8(7d129a00a95ddef8bac1f3248bb31b27):
     dependencies:
       '@clack/prompts': 1.7.0
       '@nuxt/kit': 4.5.2(magic-string@1.2.3)(magicast@0.5.4)(oxc-parser@0.143.0)(rolldown@1.2.6)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.6)(rollup@4.63.1)(vite@8.2.2(@types/node@26.1.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0)))
@@ -12561,6 +12561,7 @@ snapshots:
       nitropack: 2.13.4(oxc-parser@0.143.0)(rolldown@1.2.6)(srvx@0.12.7)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.1.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))
       playwright-core: 1.62.1
       satori: 0.19.3
+      sharp: 0.35.4(@types/node@26.1.1)
       tailwindcss: 4.3.3
       unifont: 0.7.5
       zod: 4.4.3
@@ -13872,7 +13873,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.4
       '@img/sharp-win32-x64': 0.35.4
       '@types/node': 26.1.1
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

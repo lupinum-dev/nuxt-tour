@@ -75,8 +75,8 @@ if (!/background:\s*var\(--brand\)/.test(tourDemo)) {
   failures.push('TourDemo.vue must use the shared Nuxt brand token for filled controls.')
 }
 
-if (docsPackage.dependencies?.['@lupinum/ginko-docs'] !== '0.4.0-rc.5') {
-  failures.push('docs/package.json must use @lupinum/ginko-docs 0.4.0-rc.5.')
+if (docsPackage.dependencies?.['@lupinum/ginko-docs'] !== '0.4.0-rc.8') {
+  failures.push('docs/package.json must use @lupinum/ginko-docs 0.4.0-rc.8.')
 }
 if (docsPackage.dependencies?.['@lupinum/ginko-content'] !== '1.0.0-beta.5') {
   failures.push('docs/package.json must use @lupinum/ginko-content 1.0.0-beta.5.')
