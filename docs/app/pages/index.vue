@@ -80,371 +80,143 @@ async function copyInstall(): Promise<void> {
 </script>
 
 <template>
-  <main class="landing">
-    <section class="hero">
-      <div class="hero-copy">
-        <h1>Show people around. Keep Nuxt feeling like Nuxt.</h1>
-        <p>
-          Accessible, route-aware product tours with typed definitions, semantic targets, and defaults you can trust.
-        </p>
-        <div class="hero-actions">
-          <button
-            type="button"
-            class="hero-primary"
-            @click="startDemo"
+  <main class="overflow-hidden">
+    <section class="relative border-b border-border">
+      <div class="relative mx-auto flex max-w-6xl flex-col gap-14 px-5 py-24 sm:px-8 sm:py-32 lg:flex-row lg:items-center">
+        <div class="min-w-0 flex-1">
+          <h1 class="max-w-4xl text-5xl leading-[0.98] font-semibold tracking-[-0.035em] text-balance text-foreground sm:text-7xl lg:text-6xl">
+            Show people around. Keep Nuxt feeling like Nuxt.
+          </h1>
+          <p class="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
+            Accessible, route-aware product tours with typed definitions, semantic targets, and defaults you can trust.
+          </p>
+          <div class="mt-10 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-5 text-sm font-semibold text-brand-foreground transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+              @click="startDemo"
+            >
+              <Icon
+                name="lucide:play"
+                class="size-4"
+                aria-hidden="true"
+              />
+              Try the live tour
+            </button>
+            <NuxtLink
+              to="/docs"
+              class="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-background px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              Read the guide
+              <Icon
+                name="lucide:arrow-right"
+                class="size-4"
+                aria-hidden="true"
+              />
+            </NuxtLink>
+          </div>
+          <div class="mt-5">
+            <div class="inline-flex h-10 max-w-full items-center gap-3 rounded-md border border-border bg-muted/40 pr-1.5 pl-4 font-mono text-[13px] text-foreground/90">
+              <span
+                class="text-muted-foreground select-none"
+                aria-hidden="true"
+              >$</span>
+              <span class="truncate">{{ installCommand }}</span>
+              <button
+                type="button"
+                class="content-codeblock-copy-button"
+                :aria-label="copied ? 'Copied' : 'Copy install command'"
+                @click="copyInstall"
+              >
+                <Icon
+                  :name="copied ? 'lucide:check' : 'lucide:clipboard'"
+                  class="size-3.5"
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
+          </div>
+          <p
+            v-if="errorMessage"
+            class="mt-3 text-sm text-destructive"
+            role="alert"
           >
-            <Icon
-              name="lucide:play"
-              aria-hidden="true"
-            />
-            Try the live tour
-          </button>
-          <NuxtLink
-            to="/docs"
-            class="hero-secondary"
-          >
-            Read the guide
-            <Icon
-              name="lucide:arrow-right"
-              aria-hidden="true"
-            />
-          </NuxtLink>
+            {{ errorMessage }}
+          </p>
         </div>
-        <button
-          type="button"
-          class="install-command"
-          @click="copyInstall"
-        >
-          <span aria-hidden="true">$</span>
-          <code>{{ installCommand }}</code>
-          <Icon
-            :name="copied ? 'lucide:check' : 'lucide:copy'"
-            aria-hidden="true"
-          />
-          <span class="sr-only">{{ copied ? 'Copied' : 'Copy install command' }}</span>
-        </button>
-        <p
-          v-if="errorMessage"
-          class="hero-error"
-          role="alert"
-        >
-          {{ errorMessage }}
-        </p>
-      </div>
 
-      <div class="hero-code">
-        <SiteHeroCode :tabs="heroCodeTabs" />
+        <div class="w-full min-w-0 max-w-2xl shrink-0 lg:w-[30rem] lg:max-w-full xl:w-[36rem]">
+          <SiteHeroCode :tabs="heroCodeTabs" />
+        </div>
       </div>
     </section>
 
-    <section class="demo-section">
+    <section class="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
       <TourDemo />
     </section>
 
     <section
       v-tour-target="'demo-recipes'"
-      class="recipe-section"
+      class="border-t border-border"
     >
-      <div>
-        <h2>From first tour to product-ready patterns.</h2>
-        <p>
-          Run focused recipes for rich media, live controls, Vue refs, route changes, conditional steps, and custom cards.
-        </p>
-        <NuxtLink to="/docs/recipes">
-          Open the interactive recipe lab
-          <Icon
-            name="lucide:arrow-right"
-            aria-hidden="true"
-          />
-        </NuxtLink>
+      <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
+        <div class="min-w-0">
+          <h2 class="max-w-xl text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-foreground sm:text-4xl">
+            From first tour to product-ready patterns.
+          </h2>
+          <p class="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+            Run focused recipes for rich media, live controls, Vue refs, route changes, conditional steps, and custom cards.
+          </p>
+          <NuxtLink
+            to="/docs/recipes"
+            class="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            Open the interactive recipe lab
+            <Icon
+              name="lucide:arrow-right"
+              class="size-4"
+              aria-hidden="true"
+            />
+          </NuxtLink>
+        </div>
+        <ul
+          class="divide-y divide-border border-y border-border"
+          aria-label="Available recipe topics"
+        >
+          <li class="flex min-h-15 items-center gap-3 text-sm font-semibold text-foreground">
+            <Icon
+              name="lucide:image"
+              class="size-4 text-primary"
+              aria-hidden="true"
+            />
+            Images and Vue components
+          </li>
+          <li class="flex min-h-15 items-center gap-3 text-sm font-semibold text-foreground">
+            <Icon
+              name="lucide:route"
+              class="size-4 text-primary"
+              aria-hidden="true"
+            />
+            Routes and dynamic targets
+          </li>
+          <li class="flex min-h-15 items-center gap-3 text-sm font-semibold text-foreground">
+            <Icon
+              name="lucide:mouse-pointer-click"
+              class="size-4 text-primary"
+              aria-hidden="true"
+            />
+            Interaction and focus
+          </li>
+          <li class="flex min-h-15 items-center gap-3 text-sm font-semibold text-foreground">
+            <Icon
+              name="lucide:palette"
+              class="size-4 text-primary"
+              aria-hidden="true"
+            />
+            Themes and custom cards
+          </li>
+        </ul>
       </div>
-      <ul aria-label="Available recipe topics">
-        <li>
-          <Icon
-            name="lucide:image"
-            aria-hidden="true"
-          />
-          Images and Vue components
-        </li>
-        <li>
-          <Icon
-            name="lucide:route"
-            aria-hidden="true"
-          />
-          Routes and dynamic targets
-        </li>
-        <li>
-          <Icon
-            name="lucide:mouse-pointer-click"
-            aria-hidden="true"
-          />
-          Interaction and focus
-        </li>
-        <li>
-          <Icon
-            name="lucide:palette"
-            aria-hidden="true"
-          />
-          Themes and custom cards
-        </li>
-      </ul>
     </section>
   </main>
 </template>
-
-<style scoped>
-.landing {
-  overflow: hidden;
-  color: var(--foreground);
-}
-
-.hero,
-.demo-section,
-.recipe-section {
-  width: min(100% - 2.5rem, 72rem);
-  margin-inline: auto;
-}
-
-.hero {
-  display: grid;
-  min-height: 36rem;
-  grid-template-columns: minmax(0, 1fr) minmax(28rem, 0.95fr);
-  align-items: center;
-  gap: clamp(3rem, 6vw, 5rem);
-  padding-block: clamp(4.5rem, 8vw, 6.5rem);
-}
-
-.hero h1 {
-  max-width: 11ch;
-  margin: 0;
-  font-size: clamp(3.25rem, 5.5vw, 4.75rem);
-  line-height: 0.96;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
-}
-
-.hero-copy > p {
-  max-width: 40rem;
-  margin: 1.75rem 0 0;
-  color: var(--muted-foreground);
-  font-size: clamp(1.05rem, 2vw, 1.25rem);
-  line-height: 1.7;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 2rem;
-}
-
-.hero-primary,
-.hero-secondary {
-  display: inline-flex;
-  min-height: 2.875rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0.7rem 1.05rem;
-  border-radius: 0.75rem;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: opacity 140ms ease, transform 140ms cubic-bezier(0.19, 1, 0.22, 1);
-  touch-action: manipulation;
-}
-
-.hero-primary {
-  border: 0;
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.hero-secondary {
-  border: 1px solid var(--border);
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.hero-primary svg,
-.hero-secondary svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.hero-primary:active,
-.hero-secondary:active {
-  transform: scale(0.97);
-}
-
-.install-command {
-  display: inline-flex;
-  max-width: 100%;
-  min-height: 2.5rem;
-  align-items: center;
-  gap: 0.65rem;
-  margin-top: 1rem;
-  padding: 0.45rem 0.7rem;
-  border: 0;
-  border-radius: 0.625rem;
-  background: var(--muted);
-  color: var(--muted-foreground);
-  font: inherit;
-  cursor: pointer;
-}
-
-.install-command code {
-  overflow: hidden;
-  color: var(--foreground);
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.install-command svg {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-.hero-error {
-  color: var(--destructive) !important;
-  font-size: 0.875rem !important;
-}
-
-.hero-code {
-  min-width: 0;
-  width: 100%;
-}
-
-.demo-section {
-  padding-block: 1rem clamp(6rem, 11vw, 9rem);
-}
-
-.recipe-section {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
-  align-items: center;
-  gap: clamp(3rem, 8vw, 7rem);
-  padding-block: clamp(5rem, 9vw, 8rem);
-  border-top: 1px solid var(--border);
-}
-
-.recipe-section h2 {
-  max-width: 15ch;
-  margin: 0;
-  font-size: clamp(2.25rem, 5vw, 4rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
-  text-wrap: balance;
-}
-
-.recipe-section p {
-  max-width: 40rem;
-  margin: 1.25rem 0 0;
-  color: var(--muted-foreground);
-  line-height: 1.7;
-}
-
-.recipe-section a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-top: 1.5rem;
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-underline-offset: 0.25rem;
-}
-
-.recipe-section a svg {
-  width: 1rem;
-}
-
-.recipe-section ul {
-  margin: 0;
-  padding: 0;
-  border-block: 1px solid var(--border);
-  list-style: none;
-}
-
-.recipe-section li {
-  display: flex;
-  min-height: 3.75rem;
-  align-items: center;
-  gap: 0.8rem;
-  border-block-end: 1px solid var(--border);
-  font-size: 0.875rem;
-  font-weight: 650;
-}
-
-.recipe-section li:last-child {
-  border-block-end: 0;
-}
-
-.recipe-section li svg {
-  width: 1rem;
-  height: 1rem;
-  color: var(--primary);
-}
-
-.landing :is(button, a):focus-visible {
-  outline: 3px solid var(--primary);
-  outline-offset: 3px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .hero-primary:hover,
-  .hero-secondary:hover {
-    opacity: 0.82;
-  }
-
-  .install-command:hover {
-    color: var(--foreground);
-  }
-}
-
-@media (max-width: 800px) {
-  .hero {
-    min-height: auto;
-    grid-template-columns: 1fr;
-    gap: 3.5rem;
-    padding-block: 4.5rem 4rem;
-  }
-
-  .hero h1 {
-    max-width: 13ch;
-    font-size: clamp(3rem, 14vw, 5rem);
-  }
-
-  .recipe-section {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .hero,
-  .demo-section,
-  .recipe-section {
-    width: min(100% - 2rem, 72rem);
-  }
-
-  .hero-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .hero-primary,
-  .hero-secondary {
-    width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-primary,
-  .hero-secondary {
-    transition: opacity 140ms ease;
-  }
-}
-</style>
