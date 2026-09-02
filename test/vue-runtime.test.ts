@@ -132,7 +132,11 @@ describe('Vue runtime', () => {
     await wrapper.get('#start').trigger('click')
     await flushTour()
     const spotlight = document.querySelector('[data-tour-part="spotlight"]')
+    const arrow = document.querySelector('[data-tour-part="arrow"]')
     expect(spotlight).not.toBeNull()
+    expect(arrow).toBeInstanceOf(SVGSVGElement)
+    expect(arrow?.getAttribute('viewBox')).toBe('0 0 14 14')
+    expect(arrow?.querySelector('path')?.getAttribute('d')).toBe('M1 8.5 6.15 2.35Q7 1.4 7.85 2.35L13 8.5Z')
 
     document.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button:last-child')?.click()
     await flushTour()

@@ -34,7 +34,7 @@ const root = shallowRef<HTMLElement | null>(null)
 const card = shallowRef<HTMLElement | null>(null)
 const reference = shallowRef<Element | null>(null)
 const floating = shallowRef<HTMLElement | null>(null)
-const arrow = shallowRef<HTMLElement | null>(null)
+const arrow = shallowRef<SVGSVGElement | null>(null)
 const targetRect = ref<DOMRect | null>(null)
 const positionReady = ref(false)
 let focusTrap: FocusTrap | null = null
@@ -61,7 +61,7 @@ const middleware = computed(() => [
   offset(presentation.value?.step.offset ?? 12),
   flip({ padding: 12 }),
   shift({ padding: 12, crossAxis: true }),
-  floatingArrow({ element: arrow }),
+  floatingArrow({ element: arrow, padding: 18 }),
 ])
 
 function updateTargetRect(target = visualTarget.value): void {
@@ -90,10 +90,13 @@ const arrowStyle = computed<CSSProperties>(() => {
   const position = middlewareData.value.arrow
   const side = resolvedPlacement.value.split('-')[0]!
   const staticSide = { top: 'bottom', right: 'left', bottom: 'top', left: 'right' }[side]
+  const rotation = { top: '180deg', right: '-90deg', bottom: '0deg', left: '90deg' }[side]
   return {
     left: position?.x === undefined ? undefined : `${position.x}px`,
     top: position?.y === undefined ? undefined : `${position.y}px`,
-    [staticSide ?? 'top']: '-0.3125rem',
+    visibility: position?.centerOffset ? 'hidden' : undefined,
+    transform: rotation ? `rotate(${rotation})` : undefined,
+    [staticSide ?? 'top']: '-0.4375rem',
   }
 })
 
@@ -441,13 +444,17 @@ onBeforeUnmount(() => {
             </div>
           </slot>
         </section>
-        <span
+        <svg
           v-if="presentation.target && positionReady"
           ref="arrow"
           data-tour-part="arrow"
           :style="arrowStyle"
+          viewBox="0 0 14 14"
+          focusable="false"
           aria-hidden="true"
-        />
+        >
+          <path d="M1 8.5 6.15 2.35Q7 1.4 7.85 2.35L13 8.5Z" />
+        </svg>
       </div>
     </div>
   </Teleport>

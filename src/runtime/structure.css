@@ -76,9 +76,9 @@
 [data-tour-part='arrow'] {
   position: absolute;
   z-index: -1;
-  width: 0.625rem;
-  height: 0.625rem;
-  transform: rotate(45deg);
+  width: 0.875rem;
+  height: 0.875rem;
+  overflow: visible;
   pointer-events: none;
 }
 

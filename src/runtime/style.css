@@ -66,8 +66,10 @@
 }
 
 [data-tour-part='arrow'] {
-  border: 1px solid var(--tour-border);
-  background: var(--tour-card-background);
+  fill: var(--tour-card-background);
+  stroke: var(--tour-border);
+  stroke-linejoin: round;
+  stroke-width: 1px;
 }
 
 [data-tour-part='card']:focus-visible,
@@ -292,7 +294,8 @@
   }
 
   [data-tour-part='arrow'] {
-    border-color: CanvasText;
+    fill: Canvas;
+    stroke: CanvasText;
   }
 
   [data-tour-part='spotlight'] {
