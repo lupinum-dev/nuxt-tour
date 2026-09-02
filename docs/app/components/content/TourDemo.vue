@@ -555,15 +555,16 @@ function createProject(): void {
   gap: 1rem;
   margin-top: auto;
   padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: #17171a;
-  color: #ececf0;
+  background: color-mix(in oklab, var(--muted) 72%, var(--card));
+  color: var(--foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
 }
 
 .demo-api > span {
-  color: #96969f;
+  color: var(--muted-foreground);
 }
 
 .demo-api code {
@@ -572,8 +573,11 @@ function createProject(): void {
   white-space: nowrap;
 }
 
-.demo-api b { color: #a8b6ff; font-weight: 500; }
-.demo-api i { color: #bfe4b7; font-style: normal; }
+.demo-api b { color: var(--brand); font-weight: 600; }
+.demo-api i {
+  color: color-mix(in oklab, var(--brand) 58%, var(--foreground));
+  font-style: normal;
+}
 
 .demo-note,
 .demo-error {
