@@ -488,7 +488,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
 
   const card = page.locator('[data-tour-part="card"]')
   await expect(card).toBeVisible()
-  expect(await card.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(24, 24, 27)')
+  expect(await card.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(15, 23, 42)')
   await expect(page.locator('html')).toHaveClass(/dark/u)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('auto')

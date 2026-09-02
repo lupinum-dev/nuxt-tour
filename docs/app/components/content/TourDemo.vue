@@ -259,14 +259,22 @@ function createProject(): void {
   padding: 0.65rem 1rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--brand);
-  color: var(--brand-foreground);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 140ms ease, transform 140ms var(--demo-ease);
   touch-action: manipulation;
+}
+
+.demo-start {
+  background: var(--brand);
+  color: var(--brand-foreground);
+}
+
+.demo-create {
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .demo-start svg,

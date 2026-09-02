@@ -2,18 +2,18 @@
 
 :where([data-tour-part='root']) {
   --tour-card-background: #fff;
-  --tour-card-color: #18181b;
+  --tour-card-color: #0f172a;
   --tour-card-radius: 0.875rem;
   --tour-card-shadow: 0 1.25rem 3rem rgb(0 0 0 / 24%);
-  --tour-overlay-color: rgb(9 9 11 / 58%);
+  --tour-overlay-color: rgb(2 6 23 / 58%);
   --tour-spotlight-padding: 8px;
   --tour-spotlight-radius: 0.625rem;
   --tour-accent: #4f46e5;
   --tour-accent-hover: #4338ca;
   --tour-accent-contrast: #fff;
-  --tour-muted: #71717a;
-  --tour-border: #e4e4e7;
-  --tour-hover: rgb(0 0 0 / 6%);
+  --tour-muted: #64748b;
+  --tour-border: #e2e8f0;
+  --tour-hover: rgb(15 23 42 / 6%);
   --tour-focus: #4f46e5;
   color: var(--tour-card-color);
   color-scheme: light;
@@ -222,15 +222,15 @@
 
 @media (prefers-color-scheme: dark) {
   :where([data-tour-part='root']) {
-    --tour-card-background: #18181b;
-    --tour-card-color: #fafafa;
+    --tour-card-background: #0f172a;
+    --tour-card-color: #f8fafc;
     --tour-card-shadow: 0 1.5rem 4rem rgb(0 0 0 / 48%);
-    --tour-overlay-color: rgb(0 0 0 / 68%);
+    --tour-overlay-color: rgb(2 6 23 / 72%);
     --tour-accent: #818cf8;
     --tour-accent-hover: #a5b4fc;
-    --tour-accent-contrast: #111827;
-    --tour-muted: #a1a1aa;
-    --tour-border: #3f3f46;
+    --tour-accent-contrast: #0f172a;
+    --tour-muted: #94a3b8;
+    --tour-border: #334155;
     --tour-hover: rgb(255 255 255 / 9%);
     --tour-focus: #a5b4fc;
     color-scheme: dark;
@@ -238,15 +238,15 @@
 }
 
 :where(.dark [data-tour-part='root'], [data-theme='dark'] [data-tour-part='root']) {
-  --tour-card-background: #18181b;
-  --tour-card-color: #fafafa;
+  --tour-card-background: #0f172a;
+  --tour-card-color: #f8fafc;
   --tour-card-shadow: 0 1.5rem 4rem rgb(0 0 0 / 48%);
-  --tour-overlay-color: rgb(0 0 0 / 68%);
+  --tour-overlay-color: rgb(2 6 23 / 72%);
   --tour-accent: #818cf8;
   --tour-accent-hover: #a5b4fc;
-  --tour-accent-contrast: #111827;
-  --tour-muted: #a1a1aa;
-  --tour-border: #3f3f46;
+  --tour-accent-contrast: #0f172a;
+  --tour-muted: #94a3b8;
+  --tour-border: #334155;
   --tour-hover: rgb(255 255 255 / 9%);
   --tour-focus: #a5b4fc;
   color-scheme: dark;
@@ -254,15 +254,15 @@
 
 :where(.light [data-tour-part='root'], [data-theme='light'] [data-tour-part='root']) {
   --tour-card-background: #fff;
-  --tour-card-color: #18181b;
+  --tour-card-color: #0f172a;
   --tour-card-shadow: 0 1.25rem 3rem rgb(0 0 0 / 24%);
-  --tour-overlay-color: rgb(9 9 11 / 58%);
+  --tour-overlay-color: rgb(2 6 23 / 58%);
   --tour-accent: #4f46e5;
   --tour-accent-hover: #4338ca;
   --tour-accent-contrast: #fff;
-  --tour-muted: #71717a;
-  --tour-border: #e4e4e7;
-  --tour-hover: rgb(0 0 0 / 6%);
+  --tour-muted: #64748b;
+  --tour-border: #e2e8f0;
+  --tour-hover: rgb(15 23 42 / 6%);
   --tour-focus: #4f46e5;
   color-scheme: light;
 }
