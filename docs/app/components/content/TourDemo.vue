@@ -557,7 +557,7 @@ function createProject(): void {
   padding: 0.8rem 1rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: color-mix(in oklab, var(--muted) 72%, var(--card));
+  background: color-mix(in oklab, var(--card) 78%, var(--background));
   color: var(--foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
