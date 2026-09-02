@@ -259,14 +259,22 @@ function createProject(): void {
   padding: 0.65rem 1rem;
   border: 0;
   border-radius: 0.75rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 140ms ease, transform 140ms var(--demo-ease);
   touch-action: manipulation;
+}
+
+.demo-start {
+  background: var(--brand);
+  color: var(--brand-foreground);
+}
+
+.demo-create {
+  background: var(--foreground);
+  color: var(--background);
 }
 
 .demo-start svg,
@@ -391,7 +399,7 @@ function createProject(): void {
 }
 
 .demo-profile > span {
-  background: color-mix(in oklab, var(--primary) 18%, var(--muted));
+  background: color-mix(in oklab, var(--brand) 18%, var(--muted));
   color: var(--foreground);
 }
 
@@ -555,15 +563,16 @@ function createProject(): void {
   gap: 1rem;
   margin-top: auto;
   padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
-  background: #17171a;
-  color: #ececf0;
+  background: color-mix(in oklab, var(--card) 78%, var(--background));
+  color: var(--foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.7rem;
 }
 
 .demo-api > span {
-  color: #96969f;
+  color: var(--muted-foreground);
 }
 
 .demo-api code {
@@ -572,8 +581,11 @@ function createProject(): void {
   white-space: nowrap;
 }
 
-.demo-api b { color: #a8b6ff; font-weight: 500; }
-.demo-api i { color: #bfe4b7; font-style: normal; }
+.demo-api b { color: var(--brand); font-weight: 600; }
+.demo-api i {
+  color: color-mix(in oklab, var(--brand) 58%, var(--foreground));
+  font-style: normal;
+}
 
 .demo-note,
 .demo-error {
@@ -595,7 +607,7 @@ function createProject(): void {
 }
 
 .tour-demo :is(button, a):focus-visible {
-  outline: 3px solid var(--primary);
+  outline: 3px solid var(--ring);
   outline-offset: 3px;
 }
 

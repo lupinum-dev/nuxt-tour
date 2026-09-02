@@ -127,6 +127,11 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   await expect(footerHomeLink.locator(':scope > span')).toHaveCount(1)
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('smooth')
+  const heroTourButton = page.getByRole('button', { name: 'Try the live tour' })
+  expect(await heroTourButton.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { background: style.backgroundColor, color: style.color }
+  })).toEqual({ background: 'rgb(0, 220, 130)', color: 'rgb(2, 4, 32)' })
   await page.evaluate(() => {
     const state = window as typeof window & {
       __tourInitialScrollSeen?: boolean
@@ -203,13 +208,22 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
     }, { capture: true })
   })
   await startTourPaintSampling(page)
-  await page.getByRole('button', { name: 'Try the live tour' }).click()
+  await heroTourButton.click()
 
   const root = page.locator('[data-tour-part="root"]')
   await expect(root).toHaveAttribute('data-tour-step-id', 'workspace')
   const positioner = page.locator('[data-tour-part="positioner"]')
   await expect(positioner).toHaveAttribute('data-positioned', '')
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  expect(await page.locator('[data-tour-part="actions"] button:last-child').evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { background: style.backgroundColor, color: style.color }
+  })).toEqual({ background: 'rgb(0, 220, 130)', color: 'rgb(2, 4, 32)' })
+  expect(await page.locator('[data-tour-part="arrow"]').evaluate(element => ({
+    arrowZIndex: getComputedStyle(element).zIndex,
+    cardZIndex: getComputedStyle(element.previousElementSibling!).zIndex,
+    isolated: getComputedStyle(element.parentElement!).isolation,
+  }))).toEqual({ arrowZIndex: '0', cardZIndex: '1', isolated: 'isolate' })
   await waitForAnimationFrames(page, 4)
   expectPaintedReveal(await stopTourPaintSampling(page), 'workspace')
   expect(await page.evaluate(() => {
@@ -488,7 +502,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
 
   const card = page.locator('[data-tour-part="card"]')
   await expect(card).toBeVisible()
-  expect(await card.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(24, 24, 27)')
+  expect(await card.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgb(15, 23, 42)')
   await expect(page.locator('html')).toHaveClass(/dark/u)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await page.locator('html').evaluate(element => getComputedStyle(element).scrollBehavior)).toBe('auto')

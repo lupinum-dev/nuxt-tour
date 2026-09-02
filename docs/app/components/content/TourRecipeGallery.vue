@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { markRaw } from 'vue'
+import { markRaw, useId } from 'vue'
 import TourRecipeCenteredPreview from './recipes/TourRecipeCenteredPreview.vue'
 import TourRecipeInteractionPreview from './recipes/TourRecipeInteractionPreview.vue'
 import TourRecipeMediaPreview from './recipes/TourRecipeMediaPreview.vue'
@@ -8,6 +8,8 @@ import TourRecipeProgrammaticPreview from './recipes/TourRecipeProgrammaticPrevi
 const copied = ref(false)
 const errorMessage = ref('')
 const closingScriptTag = '</' + 'script>'
+const runtimeConfig = useRuntimeConfig()
+const regionId = useId()
 
 const recipes = {
   media: {
@@ -16,6 +18,7 @@ const recipes = {
     label: 'Rich media',
     icon: 'lucide:image',
     description: 'Render an image, video, or live Vue component inside the default card.',
+    language: 'ts',
     code: `import ProjectOverview from '~/components/tours/ProjectOverview.vue'
 
 export default defineTour({
@@ -34,6 +37,7 @@ export default defineTour({
     label: 'Live controls',
     icon: 'lucide:mouse-pointer-click',
     description: 'Keep the highlighted control usable while the rest of the page stays protected.',
+    language: 'ts',
     code: `{
   id: 'filters',
   target: 'project-filters',
@@ -48,6 +52,7 @@ export default defineTour({
     label: 'Vue refs',
     icon: 'lucide:component',
     description: 'Register a semantic target from a component ref when a directive does not fit.',
+    language: 'vue',
     code: `<script setup lang="ts">
 const createButton = useTemplateRef('createButton')
 useTourTarget('create-project', createButton)
@@ -63,6 +68,7 @@ ${closingScriptTag}
     label: 'Announcements',
     icon: 'lucide:party-popper',
     description: 'Omit the target for a deliberate welcome, checkpoint, or completion step.',
+    language: 'ts',
     code: `{
   id: 'complete',
   ariaLabel: 'Setup complete',
@@ -76,6 +82,51 @@ type RecipeId = keyof typeof recipes
 const activeId = ref<RecipeId>('media')
 const activeRecipe = computed(() => recipes[activeId.value])
 const pending = computed(() => Object.values(recipes).some(recipe => recipe.controller.pending.value))
+
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
+
+function plainLines(code: string): string {
+  return code
+    .split('\n')
+    .map(line => `<span class="line">${line.replace(/[&<>]/g, character => HTML_ESCAPES[character] ?? character)}</span>`)
+    .join('')
+}
+
+// Recipe code is a local static string, so it does not pass through Nuxt Content's
+// build-time highlighter. Highlight every recipe once with the configured themes.
+const { data: highlightedRecipes } = await useAsyncData(`tour-recipes-${regionId}`, async () => {
+  const { codeToHast, hastToHtml } = await import('shiki')
+  const configuredThemes = runtimeConfig.public.ginkoDocs?.syntaxHighlighting?.themes
+  const themes = {
+    light: configuredThemes?.light ?? 'light-plus',
+    dark: configuredThemes?.dark ?? 'dark-plus',
+  }
+
+  return Object.fromEntries(await Promise.all(
+    Object.entries(recipes).map(async ([id, recipe]) => {
+      try {
+        const root = await codeToHast(recipe.code, { lang: recipe.language, themes })
+        const pre = root.children.find(node => node.type === 'element')
+        const code = pre?.children.find(node => node.type === 'element')
+        const highlightedCode = code
+          ? hastToHtml({
+              type: 'root' as const,
+              children: code.children.filter(node => node.type !== 'text' || node.value !== '\n'),
+            })
+          : plainLines(recipe.code)
+
+        return [id, highlightedCode]
+      }
+      catch {
+        return [id, plainLines(recipe.code)]
+      }
+    }),
+  ))
+})
+
+const activeHighlightedCode = computed(() =>
+  highlightedRecipes.value?.[activeId.value] ?? plainLines(activeRecipe.value.code),
+)
 
 async function selectRecipe(id: RecipeId): Promise<void> {
   const current = activeRecipe.value.controller
@@ -181,7 +232,10 @@ async function copyRecipe(): Promise<void> {
               aria-hidden="true"
             />
           </summary>
-          <div>
+          <div
+            class="shiki"
+            data-fd-codeblock
+          >
             <button
               type="button"
               @click="copyRecipe"
@@ -192,7 +246,10 @@ async function copyRecipe(): Promise<void> {
               />
               {{ copied ? 'Copied' : 'Copy' }}
             </button>
-            <pre><code>{{ activeRecipe.code }}</code></pre>
+            <!-- Shiki output is generated exclusively from the static recipes above. -->
+            <!-- eslint-disable vue/no-v-html -->
+            <pre><code v-html="activeHighlightedCode" /></pre>
+            <!-- eslint-enable vue/no-v-html -->
           </div>
         </details>
       </div>
@@ -217,7 +274,7 @@ async function copyRecipe(): Promise<void> {
 
 <style scoped>
 .recipe-lab {
-  --recipe-accent: var(--nuxt-green-700);
+  --recipe-accent: var(--brand);
   margin-block: 2.5rem;
   color: var(--foreground);
 }
@@ -381,7 +438,7 @@ async function copyRecipe(): Promise<void> {
   border: 0;
   border-radius: 0.625rem;
   background: var(--recipe-accent);
-  color: white;
+  color: var(--brand-foreground);
   font: inherit;
   font-size: 0.75rem;
   font-weight: 700;
@@ -472,7 +529,7 @@ async function copyRecipe(): Promise<void> {
 
 :deep(.filter-control button[aria-pressed='true']) {
   background: var(--recipe-accent);
-  color: white;
+  color: var(--brand-foreground);
 }
 
 :deep(.programmatic-preview > svg) {
@@ -493,8 +550,8 @@ async function copyRecipe(): Promise<void> {
   height: 3rem;
   margin-block-end: 1rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--recipe-accent) 16%, transparent);
-  color: var(--recipe-accent);
+  background: var(--recipe-accent);
+  color: var(--brand-foreground);
   place-items: center;
 }
 
@@ -543,8 +600,8 @@ async function copyRecipe(): Promise<void> {
 .recipe-code > div {
   position: relative;
   border-block-start: 1px solid var(--border);
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--code);
+  color: var(--code-foreground);
 }
 
 .recipe-code > div > button {
@@ -556,10 +613,10 @@ async function copyRecipe(): Promise<void> {
   align-items: center;
   gap: 0.35rem;
   padding-inline: 0.6rem;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
-  background: #1e293b;
-  color: #f8fafc;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
   font: inherit;
   font-size: 0.7rem;
   font-weight: 700;
@@ -578,7 +635,7 @@ async function copyRecipe(): Promise<void> {
   padding-inline-end: 5rem;
   font-size: 0.72rem;
   line-height: 1.65;
-  scrollbar-color: #475569 #0f172a;
+  scrollbar-color: var(--muted-foreground) var(--code);
 }
 
 .recipe-error {
@@ -601,7 +658,8 @@ async function copyRecipe(): Promise<void> {
 
   .recipe-stage-toolbar > button:hover:not(:disabled),
   :deep(.programmatic-preview button:hover) {
-    background: var(--nuxt-green-800);
+    background: var(--recipe-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent);
   }
 }
 
@@ -671,23 +729,9 @@ async function copyRecipe(): Promise<void> {
 }
 
 @media (prefers-color-scheme: dark) {
-  .recipe-lab {
-    --recipe-accent: var(--nuxt-green-400);
-  }
-
   .recipe-shell > nav button[aria-current='true'],
   :deep(.media-preview) {
     box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 32%);
   }
-}
-
-:global(.dark) .recipe-lab,
-:global([data-theme='dark']) .recipe-lab {
-  --recipe-accent: var(--nuxt-green-400);
-}
-
-:global(.light) .recipe-lab,
-:global([data-theme='light']) .recipe-lab {
-  --recipe-accent: var(--nuxt-green-700);
 }
 </style>

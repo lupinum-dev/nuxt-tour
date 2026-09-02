@@ -128,7 +128,28 @@ test('honors reduced motion and class-based dark mode', async ({ page, goto }) =
     return { animationName: style.animationName, backgroundColor: style.backgroundColor }
   })
   expect(styles.animationName).toBe('none')
-  expect(styles.backgroundColor).toBe('rgb(24, 24, 27)')
+  expect(styles.backgroundColor).toBe('rgb(15, 23, 42)')
+
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-tour-step-id', 'query')
+  const arrow = page.locator('[data-tour-part="arrow"]')
+  await expect(arrow).toHaveAttribute('viewBox', '0 0 14 14')
+  expect(await arrow.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      width: style.width,
+      height: style.height,
+      zIndex: style.zIndex,
+      fill: style.fill,
+      stroke: style.stroke,
+    }
+  })).toEqual({
+    width: '14px',
+    height: '14px',
+    zIndex: '0',
+    fill: 'rgb(15, 23, 42)',
+    stroke: 'rgb(51, 65, 85)',
+  })
 })
 
 test('cancels the tour when browser Back leaves its destination', async ({ page, goto }) => {
