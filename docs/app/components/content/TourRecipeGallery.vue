@@ -108,7 +108,14 @@ const { data: highlightedRecipes } = await useAsyncData(`tour-recipes-${regionId
         const root = await codeToHast(recipe.code, { lang: recipe.language, themes })
         const pre = root.children.find(node => node.type === 'element')
         const code = pre?.children.find(node => node.type === 'element')
-        return [id, code ? hastToHtml({ type: 'root' as const, children: code.children }) : plainLines(recipe.code)]
+        const highlightedCode = code
+          ? hastToHtml({
+              type: 'root' as const,
+              children: code.children.filter(node => node.type !== 'text' || node.value !== '\n'),
+            })
+          : plainLines(recipe.code)
+
+        return [id, highlightedCode]
       }
       catch {
         return [id, plainLines(recipe.code)]
