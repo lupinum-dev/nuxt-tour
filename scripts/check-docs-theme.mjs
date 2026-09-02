@@ -31,7 +31,7 @@ requireMatch(
 )
 requireMatch(
   appConfig,
-  /nav:\s*\{[^}]*socialIcons:\s*true[^}]*\}/s,
+  /nav:\s*\{[^}]*socialIcons:\s*true[^}]*\}/,
   'app.config.ts must show the configured GitHub and Discord links in the header.',
 )
 requireMatch(
@@ -61,6 +61,16 @@ if (copiedThemeExists) {
 if (/--nuxt-green-\d+\s*:/.test(tourCss)) {
   failures.push('tour.css may consume Nuxt tokens but must not define the shared palette.')
 }
+requireMatch(
+  tourCss,
+  /--tour-accent:\s*var\(--brand\)/,
+  'tour.css must use the shared Nuxt brand token for the primary tour action.',
+)
+requireMatch(
+  tourCss,
+  /--tour-accent-contrast:\s*var\(--brand-foreground\)/,
+  'tour.css must use the shared Nuxt brand foreground on the primary tour action.',
+)
 if (!/background:\s*var\(--brand\)/.test(tourDemo)) {
   failures.push('TourDemo.vue must use the shared Nuxt brand token for filled controls.')
 }

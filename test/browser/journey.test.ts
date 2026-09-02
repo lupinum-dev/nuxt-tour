@@ -139,12 +139,14 @@ test('honors reduced motion and class-based dark mode', async ({ page, goto }) =
     return {
       width: style.width,
       height: style.height,
+      zIndex: style.zIndex,
       fill: style.fill,
       stroke: style.stroke,
     }
   })).toEqual({
     width: '14px',
     height: '14px',
+    zIndex: '0',
     fill: 'rgb(15, 23, 42)',
     stroke: 'rgb(51, 65, 85)',
   })
