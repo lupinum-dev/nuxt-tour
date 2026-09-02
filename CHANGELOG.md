@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2
+
+- Align the default tour card, controls, arrow, and spotlight surfaces with the official Nuxt color system.
+- Refine the card-to-target seam while preserving positioning, accessibility, and reduced-motion behavior.
+- Update the interactive documentation to the certified Ginko Docs Nuxt theme and current product assets.
+
 ## v0.1.1
 
 - Eliminate spotlight flicker by painting the covered transition state before revealing each target.
