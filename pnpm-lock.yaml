@@ -94,6 +94,9 @@ importers:
       nuxt-site-config:
         specifier: 4.2.3
         version: 4.2.3(a39f69f56517dddc85fbf1108a859290)
+      shiki:
+        specifier: 4.4.3
+        version: 4.4.3
       vue:
         specifier: 3.5.42
         version: 3.5.42(typescript@5.9.3)
