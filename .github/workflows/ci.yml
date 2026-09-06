@@ -81,4 +81,4 @@ jobs:
       - run: pnpm build
       - run: pnpm preview:pack
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm exec node scripts/verify-packed-consumer.mjs --preview --framework ${{ matrix.framework }} --framework-version ${{ matrix.framework-version }}
+      - run: pnpm consumer:verify --preview --framework ${{ matrix.framework }} --framework-version ${{ matrix.framework-version }}
