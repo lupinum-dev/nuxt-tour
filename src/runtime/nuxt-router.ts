@@ -1,61 +1,14 @@
 import { nextTick } from 'vue'
 import { isNavigationFailure } from 'vue-router'
 import type { NuxtApp } from '#app'
-import type { LocationQueryRaw, RouteLocationRaw, RouteParamsRawGeneric, Router } from 'vue-router'
-import { tourNavigationAbort } from './router'
+import type { Router } from 'vue-router'
+import { routeLocation, tourNavigationAbort } from './router'
 import type { TourRouterAdapter } from './router'
-import type { TourRoute, TourRouteParamsValue, TourRouteQueryValue } from './types'
 
 const routeSettlementTimeout = 10_000
 
 export interface NuxtTourIntegrationOptions {
   readonly pageTransition: boolean
-}
-
-function mutableParams(
-  values: Readonly<Record<string, TourRouteParamsValue>> | undefined,
-): RouteParamsRawGeneric | undefined {
-  if (!values) return
-  const mutable: RouteParamsRawGeneric = {}
-  for (const [key, value] of Object.entries(values)) {
-    mutable[key] = typeof value === 'object' && value !== null ? [...value] : value
-  }
-  return mutable
-}
-
-function mutableQuery(
-  values: Readonly<Record<string, TourRouteQueryValue>> | undefined,
-): LocationQueryRaw | undefined {
-  if (!values) return
-  const mutable: LocationQueryRaw = {}
-  for (const [key, value] of Object.entries(values)) {
-    mutable[key] = typeof value === 'object' && value !== null ? [...value] : value
-  }
-  return mutable
-}
-
-function routeLocation(route: TourRoute): {
-  location: RouteLocationRaw
-  replace: boolean
-} {
-  if (typeof route === 'string') return { location: route, replace: false }
-  const { replace = false, ...destination } = route
-  const location: RouteLocationRaw = 'name' in destination
-    ? {
-        name: destination.name,
-        params: mutableParams(destination.params),
-        query: mutableQuery(destination.query),
-        hash: destination.hash,
-      }
-    : {
-        path: destination.path,
-        query: mutableQuery(destination.query),
-        hash: destination.hash,
-      }
-  return {
-    location,
-    replace,
-  }
 }
 
 function waitForSettlement(

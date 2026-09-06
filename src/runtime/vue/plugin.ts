@@ -1,8 +1,8 @@
 import { nextTick } from 'vue'
 import type { App, Plugin } from 'vue'
-import { tourNavigationAbort } from '../router'
+import { routeLocation, tourNavigationAbort } from '../router'
 import type { TourRouterAdapter } from '../router'
-import type { MaybePromise, TourDefinition, TourRoute, TourRouteParamsValue, TourRouteQueryValue, TourRuntimeOptions } from '../types'
+import type { MaybePromise, TourDefinition, TourRoute, TourRuntimeOptions } from '../types'
 import { tourRuntimeKey } from './injection'
 import { createTourTargetDirective } from './tour-target-directive'
 import { TourVueRuntime } from './runtime'
@@ -14,40 +14,12 @@ export interface TourPluginOptions extends TourRuntimeOptions {
 
 /** The structural part of Vue Router used by the tour runtime. */
 export interface VueRouterLike {
-  push(route: ReturnType<typeof routerLocation>): unknown
-  replace(route: ReturnType<typeof routerLocation>): unknown
+  push(route: ReturnType<typeof routeLocation>['location']): unknown
+  replace(route: ReturnType<typeof routeLocation>['location']): unknown
   afterEach?(handler: () => void): () => void
 }
 
 export type TourPlugin = Plugin
-
-// Vue Router accepts mutable arrays. Keep the tour definition readonly and give
-// the router its own destination values, as the Nuxt adapter already does.
-function mutableParams(values: Readonly<Record<string, TourRouteParamsValue>> | undefined) {
-  if (!values) return
-  const result: Record<string, string | number | null | (string | number)[]> = {}
-  for (const [key, value] of Object.entries(values)) {
-    result[key] = typeof value === 'object' && value !== null ? [...value] : value
-  }
-  return result
-}
-
-function mutableQuery(values: Readonly<Record<string, TourRouteQueryValue>> | undefined) {
-  if (!values) return
-  const result: Record<string, string | number | null | (string | number | null)[]> = {}
-  for (const [key, value] of Object.entries(values)) {
-    result[key] = typeof value === 'object' && value !== null ? [...value] : value
-  }
-  return result
-}
-
-function routerLocation(route: TourRoute) {
-  if (typeof route === 'string') return route
-  const { replace: _replace, ...destination } = route
-  return 'name' in destination
-    ? { ...destination, params: mutableParams(destination.params), query: mutableQuery(destination.query) }
-    : { ...destination, query: mutableQuery(destination.query) }
-}
 
 function createVueRouterAdapter(router: VueRouterLike | undefined): TourRouterAdapter | undefined {
   if (!router) return
@@ -55,9 +27,8 @@ function createVueRouterAdapter(router: VueRouterLike | undefined): TourRouterAd
   return {
     async navigate(route: TourRoute, signal: AbortSignal) {
       if (signal.aborted) throw tourNavigationAbort()
-      const shouldReplace = typeof route === 'object' && route.replace === true
-      const location = routerLocation(route)
-      const navigate = shouldReplace ? router.replace : router.push
+      const { location, replace } = routeLocation(route)
+      const navigate = replace ? router.replace : router.push
       internalNavigations += 1
       try {
         const failure = await navigate.call(router, location)
