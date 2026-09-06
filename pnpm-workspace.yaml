@@ -5,9 +5,6 @@ packages:
 minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
-# Exact first-party prerelease certified in lupinum-dev/ginko-docs Actions run
-# 33624551862. Remove after 2026-09-03 14:00 Europe/Vienna.
-minimumReleaseAgeExclude: ["@lupinum/ginko-docs@0.4.0-rc.8"]
 
 allowBuilds:
   '@parcel/watcher': true
@@ -17,6 +14,8 @@ allowBuilds:
   vue-demi: true
 
 overrides:
+  # Nitro 2.12 static assets break with plugin-replace 6.0.3; see internals/migrations.md.
+  'nitropack@2.12.0>@rollup/plugin-replace': 6.0.2
   # mkdist 2.4 requires the 0.1 line. Remove when its peer range accepts 0.2.
   vue-sfc-transformer: 0.1.1
   # Remove when fontless requires esbuild 0.28.1 or newer.
