@@ -58,7 +58,7 @@ jobs:
           sha256sum --check --strict SHA256SUMS
           test "$(node -p "require('./release.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./release.json').sourceSha")" = "$GITHUB_SHA"
-          tarball="$(node -p "require('./release.json').filename")"
+          tarball="$(node -e "const {filename}=require('./release.json'); if (typeof filename !== 'string' || filename.trim() !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(filename)) throw new Error('Invalid retained tarball basename.'); process.stdout.write(filename)")"
           test "$(tar -xOf "$tarball" package/package.json | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(input).name))")" = '@lupinum/nuxt-tour'
           test "$(tar -xOf "$tarball" package/package.json | node -e "let input='';process.stdin.on('data',chunk=>input+=chunk);process.stdin.on('end',()=>process.stdout.write(JSON.parse(input).version))")" = "$RELEASE_VERSION"
           channel=latest; [[ "$RELEASE_VERSION" == *-* ]] && channel=next
@@ -142,7 +142,7 @@ jobs:
           sha256sum --check --strict SHA256SUMS
           test "$(node -p "require('./release.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./release.json').sourceSha")" = "$GITHUB_SHA"
-          tarball="$(node -p "require('./release.json').filename")"
+          tarball="$(node -e "const {filename}=require('./release.json'); if (typeof filename !== 'string' || filename.trim() !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(filename)) throw new Error('Invalid retained tarball basename.'); process.stdout.write(filename)")"
           package_name="$(tar -xOf "$tarball" package/package.json | node -e "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).name))")"
           package_version="$(tar -xOf "$tarball" package/package.json | node -e "let input=''; process.stdin.on('data', chunk => input += chunk); process.stdin.on('end', () => process.stdout.write(JSON.parse(input).version))")"
           test "$package_name" = '@lupinum/nuxt-tour'
@@ -164,6 +164,9 @@ jobs:
             fail(`npm view failed for ${spec} ${field}: ${result.stderr.trim()}`)
           }
           const record = JSON.parse(readFileSync('release.json', 'utf8'))
+          if (typeof record.filename !== 'string' || record.filename.trim() !== record.filename || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(record.filename)) {
+            fail('Invalid retained tarball basename.')
+          }
           const packageName = '@lupinum/nuxt-tour'
           const spec = `${packageName}@${record.version}`
           const maxAttempts = Number(process.env.REGISTRY_POLL_ATTEMPTS || 240)
@@ -183,7 +186,7 @@ jobs:
             mode = attestations ? 'oidc' : 'bootstrap'
           } else {
             const result = run([
-              'publish', record.filename, '--provenance', '--access', 'public',
+              'publish', `./${record.filename}`, '--provenance', '--access', 'public',
               '--tag', record.distTag, '--ignore-scripts',
             ], true)
             if (result.status !== 0) fail(`npm publish failed for ${spec}.`)
@@ -234,7 +237,7 @@ jobs:
           cd release-artifacts
           sha256sum --check --strict SHA256SUMS
           test "$(node -p "require('./release.json').sourceSha")" = "$GITHUB_SHA"
-          tarball="$(node -p "require('./release.json').filename")"
+          tarball="$(node -e "const {filename}=require('./release.json'); if (typeof filename !== 'string' || filename.trim() !== filename || !/^[A-Za-z0-9][A-Za-z0-9._-]*\.tgz$/.test(filename)) throw new Error('Invalid retained tarball basename.'); process.stdout.write(filename)")"
           prerelease=(); prerelease_edit=(--prerelease=false)
           if [[ "$RELEASE_VERSION" == *-* ]]; then prerelease=(--prerelease); prerelease_edit=(--prerelease); fi
           test -s release-notes.md
