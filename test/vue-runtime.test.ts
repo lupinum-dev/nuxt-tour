@@ -52,17 +52,6 @@ function createTourInstallation(options: TourPluginOptions) {
   }
 }
 
-async function flushTour(): Promise<void> {
-  await nextTick()
-  // TourHost intentionally holds its covered, positioned state through a
-  // browser paint before revealing. Advance enough frames to settle either a
-  // targeted or centered step without replacing that production behaviour.
-  for (let frame = 0; frame < 4; frame += 1) {
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-  }
-  await nextTick()
-}
-
 describe('Vue runtime', () => {
   it('renders a named dialog and restores focus after Escape', async () => {
     const definition = defineTour({
@@ -86,7 +75,7 @@ describe('Vue runtime', () => {
     ;(start.element as HTMLElement).focus()
 
     await start.trigger('click')
-    await flushTour()
+    await expect.poll(() => installation.runtime.scene.value.phase).toBe('active')
 
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')
     expect(dialog?.getAttribute('aria-modal')).toBe('true')
@@ -96,11 +85,11 @@ describe('Vue runtime', () => {
     expect(appRoot.inert).toBe(true)
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-    await flushTour()
-
-    expect(document.querySelector('[role="dialog"]')).toBeNull()
-    expect(document.activeElement).toBe(start.element)
-    expect(appRoot.inert).toBe(false)
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
+      expect(document.activeElement).toBe(start.element)
+      expect(appRoot.inert).toBe(false)
+    })
     wrapper.unmount()
   })
 
@@ -130,7 +119,7 @@ describe('Vue runtime', () => {
     const stopSecond = installation.runtime.targets.register('two', wrapper.get('#second-target').element)
 
     await wrapper.get('#start').trigger('click')
-    await flushTour()
+    await expect.poll(() => installation.runtime.scene.value.phase).toBe('active')
     const spotlight = document.querySelector('[data-tour-part="spotlight"]')
     const arrow = document.querySelector('[data-tour-part="arrow"]')
     expect(spotlight).not.toBeNull()
@@ -139,10 +128,12 @@ describe('Vue runtime', () => {
     expect(arrow?.querySelector('path')?.getAttribute('d')).toBe('M1 8.5 6.15 2.35Q7 1.4 7.85 2.35L13 8.5Z')
 
     document.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button:last-child')?.click()
-    await flushTour()
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-tour-step-id')).toBe('two')
+      expect(installation.runtime.scene.value.phase).toBe('active')
+    })
 
     expect(document.querySelector('[data-tour-part="spotlight"]')).toBe(spotlight)
-    expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-tour-step-id')).toBe('two')
     stopFirst()
     stopSecond()
     wrapper.unmount()
@@ -266,7 +257,6 @@ describe('Vue runtime', () => {
     const unregister = registry.register('animated', target)
 
     const waiting = registry.wait('animated', { signal: controller.signal, timeout: 250 })
-    await new Promise(resolve => setTimeout(resolve, 60))
     visible = true
 
     await expect(waiting).resolves.toBe(target)
@@ -283,9 +273,7 @@ describe('Vue runtime', () => {
     const stop = registry.observeVisibility(target, listener)
 
     target.remove()
-    await new Promise(resolve => setTimeout(resolve, 0))
-
-    expect(listener).toHaveBeenCalledOnce()
+    await expect.poll(() => listener.mock.calls.length).toBe(1)
     stop()
   })
 
@@ -342,7 +330,7 @@ describe('Vue runtime', () => {
     })
     const unregister = installation.runtime.registerHost()
     const start = installation.runtime.controller(definition).start()
-    await flushTour()
+    await expect.poll(() => installation.runtime.presentation.value).not.toBeNull()
     const presentation = installation.runtime.presentation.value
     expect(presentation).not.toBeNull()
     installation.runtime.ready(presentation!.transitionId)
@@ -392,7 +380,7 @@ describe('Vue runtime', () => {
     })
     const unregister = installation.runtime.registerHost()
     const start = installation.runtime.controller(definition).start()
-    await flushTour()
+    await expect.poll(() => installation.runtime.presentation.value).not.toBeNull()
     const presentation = installation.runtime.presentation.value
     expect(presentation).not.toBeNull()
     installation.runtime.ready(presentation!.transitionId)
@@ -440,7 +428,6 @@ describe('Vue runtime', () => {
     makeVisible(second.get('.target').element as HTMLElement)
 
     await controllers[0]!.start()
-    await flushTour()
 
     expect(controllers[0]!.isActive.value).toBe(true)
     expect(controllers[1]!.isActive.value).toBe(false)
@@ -483,7 +470,6 @@ describe('Vue runtime', () => {
     })
 
     await controller.start()
-    await flushTour()
     await controller.cancel()
 
     expect(observed).toEqual(['first', 'first', 'first'])
@@ -508,15 +494,13 @@ describe('Vue runtime', () => {
       global: { plugins: [createTourPlugin({ tours: [definition] })] },
     })
     await controller.start()
-    await flushTour()
     expect(controller.isActive.value).toBe(true)
 
     showHost.value = false
-    await flushTour()
-    await flushTour()
-
-    expect(controller.isActive.value).toBe(false)
-    expect(document.querySelector('[data-tour-part="root"]')).toBeNull()
+    await vi.waitFor(() => {
+      expect(controller.isActive.value).toBe(false)
+      expect(document.querySelector('[data-tour-part="root"]')).toBeNull()
+    })
     wrapper.unmount()
   })
 
@@ -542,7 +526,6 @@ describe('Vue runtime', () => {
     })
 
     await controller.start()
-    await flushTour()
 
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
     expect(dialog.getAttribute('aria-label')).toBe('Custom title')
