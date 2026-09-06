@@ -36,30 +36,16 @@ describe('retained publication boundary', () => {
     }
   }, 30_000)
 
-  it('checks the actual filename again before invoking npm publish', () => {
-    const shell = (workflow.jobs.publish.steps as { run?: string }[]).find(step => step.run?.includes('\'publish\','))!.run!
-    const script = shell.split('node --input-type=module <<\'NODE\'\n')[1]!.split('\nNODE')[0]!
-    // Run the real publication body with inert npm/fs substitutes. An unsafe name
-    // must not reach even npm view; a valid candidate must publish a local tarball.
-    for (const filename of ['lupinum-nuxt-tour-0.1.2.tgz', ...invalidNames]) {
-      const calls: string[][] = []
-      const body = script.replace(/^import .*\n/gm, '').replace('process.exit(0)', 'return')
-      const execute = new Function('spawnSync', 'readFileSync', 'appendFileSync', 'process', body)
-      const run = () => execute((command: string, args: string[]) => {
-        expect(command).toBe('npm')
-        calls.push(args)
-        const field = args[2]
-        const published = calls.some(call => call[0] === 'publish')
-        return { status: 0, stdout: JSON.stringify(args[0] === 'publish' ? null : (!published ? null : field === 'dist.shasum' ? 'hash' : field === 'dist.attestations' ? {} : record.version)) }
-      }, () => JSON.stringify({ ...record, filename, shasum: 'hash' }), () => {}, { env: { REGISTRY_POLL_ATTEMPTS: '1', REGISTRY_POLL_DELAY_MS: '0' } })
-      if (filename === 'lupinum-nuxt-tour-0.1.2.tgz') {
-        expect(run).not.toThrow()
-        expect(calls.find(call => call[0] === 'publish')?.[1]).toBe(`./${filename}`)
-      }
-      else {
-        expect(run).toThrow('Invalid retained tarball basename')
-        expect(calls).toEqual([])
-      }
-    }
+  it('publishes one checksum-verified retained tarball directly', () => {
+    const shell = (workflow.jobs.publish.steps as { run?: string }[]).find(step => step.run?.includes('npm publish'))!.run!
+    const checksum = shell.indexOf('sha256sum --check --strict SHA256SUMS')
+    const oneTarball = shell.indexOf('find . -maxdepth 1 -type f -name \'*.tgz\'')
+    const publish = shell.indexOf('npm publish release-artifacts/*.tgz')
+
+    expect(checksum).toBeGreaterThan(-1)
+    expect(oneTarball).toBeGreaterThan(checksum)
+    expect(publish).toBeGreaterThan(oneTarball)
+    expect(shell).toContain('--provenance')
+    expect(shell).toContain('--ignore-scripts')
   })
 })

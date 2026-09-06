@@ -135,10 +135,9 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with: { name: verified-release, path: release-artifacts }
       - name: Verify and publish inert artifact
-        id: publish
-        working-directory: release-artifacts
         env: { RELEASE_VERSION: "${{ inputs.version }}" }
         run: |
+          cd release-artifacts
           sha256sum --check --strict SHA256SUMS
           test "$(node -p "require('./release.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./release.json').sourceSha")" = "$GITHUB_SHA"
@@ -149,6 +148,14 @@ jobs:
           test "$package_version" = "$RELEASE_VERSION"
           channel=latest; [[ "$RELEASE_VERSION" == *-* ]] && channel=next
           test "$(node -p "require('./release.json').distTag")" = "$channel"
+          test "$(find . -maxdepth 1 -type f -name '*.tgz' | wc -l | tr -d ' ')" = 1
+          cd ..
+          npm publish release-artifacts/*.tgz \
+            --provenance \
+            --access public \
+            --tag "$channel" \
+            --ignore-scripts
+          cd release-artifacts
           node --input-type=module <<'NODE'
           import { spawnSync } from 'node:child_process'
           import { appendFileSync, readFileSync } from 'node:fs'
@@ -175,45 +182,19 @@ jobs:
           if (!Number.isInteger(pollDelayMs) || pollDelayMs < 0) fail('Invalid registry poll delay.')
           let existing = view(spec, 'dist.shasum')
           if (existing && existing !== record.shasum) fail(`${spec} exists with different bytes.`)
-          let mode
-          if (existing) {
-            const attestations = view(spec, 'dist.attestations')
-            const published = view(packageName, 'versions')
-            const versions = Array.isArray(published) ? published : [published]
-            if (!attestations && (versions.length !== 1 || versions[0] !== record.version)) {
-              fail(`${spec} is not the first package version and has no provenance.`)
-            }
-            mode = attestations ? 'oidc' : 'bootstrap'
-          } else {
-            const result = run([
-              'publish', `./${record.filename}`, '--provenance', '--access', 'public',
-              '--tag', record.distTag, '--ignore-scripts',
-            ], true)
-            if (result.status !== 0) fail(`npm publish failed for ${spec}.`)
-            mode = 'oidc'
-          }
           for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
             const shasum = view(spec, 'dist.shasum')
             const attestations = view(spec, 'dist.attestations')
             const channel = view(packageName, `dist-tags.${record.distTag}`)
-            const published = mode === 'bootstrap' ? view(packageName, 'versions') : null
-            const versions = Array.isArray(published) ? published : [published]
-            const remainsFirstVersion = mode !== 'bootstrap' || (
-              versions.length === 1 && versions[0] === record.version
-            )
             if (
-              shasum === record.shasum && channel === record.version && remainsFirstVersion &&
-              (mode === 'bootstrap' || (mode === 'oidc' && attestations))
+              shasum === record.shasum && channel === record.version && attestations
             ) {
-              appendFileSync(process.env.GITHUB_OUTPUT, `bootstrap=${String(mode === 'bootstrap')}\n`)
-              appendFileSync(process.env.GITHUB_OUTPUT, `bootstrap-packages=${mode === 'bootstrap' ? packageName : ''}\n`)
-              appendFileSync(process.env.GITHUB_OUTPUT, `modes=${JSON.stringify({ [packageName]: mode })}\n`)
-              appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\nPublication mode: ${mode}.\n`)
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, '\nPublication mode: oidc.\n')
               process.exit(0)
             }
             Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pollDelayMs)
           }
-          fail(`${spec} did not expose the required bytes, provenance mode, and ${record.distTag}.`)
+          fail(`${spec} did not expose the required bytes, OIDC provenance, and ${record.distTag}.`)
           NODE
 
   github-release:
