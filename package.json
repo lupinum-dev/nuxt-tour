@@ -81,7 +81,7 @@
     "test:browser": "playwright test --project=chromium",
     "test:browser:release": "playwright test",
     "test:docs": "playwright test test/browser/docs.test.ts --project=chromium",
-    "test:types": "nuxt typecheck test/fixtures/basic",
+    "test:types": "nuxt typecheck test/fixtures/basic && nuxt typecheck test/fixtures/layers/project",
     "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck && pnpm docs:typecheck",
     "verify": "pnpm verify:core && pnpm test:browser",
     "verify:core": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm docs:build"
