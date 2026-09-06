@@ -12,6 +12,8 @@ export default createConfigForNuxt({
 })
   .append({
     ignores: [
+      // Keep the shared Lupinum OSS checker byte-identical to its canonical copy.
+      'scripts/check-dependency-policy.mjs',
       'dist/**',
       'release-artifacts/**',
       '.preview-artifacts/**',

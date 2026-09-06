@@ -11,6 +11,25 @@ the migration and release it under the correct semantic version.
 Do not present a planned API as implemented behavior. Verify examples against
 the packed package before release.
 
+## Setup and evidence
+
+Run `pnpm install --frozen-lockfile`, then `pnpm dev`. Use the playground URL
+printed by Nuxt. The playground has no login, backend, or external write service.
+Use disposable tours and stop only processes you started.
+
+| Command | Evidence |
+| --- | --- |
+| `pnpm verify` | Audit, policy, types, source tests, builds, and Chromium journeys. |
+| `pnpm test test/controller.test.ts` | Focused controller behavior. |
+| `pnpm test:types` | Discovered tour and step selection, including layer overrides. |
+| `pnpm preview:verify` | Mounted Nuxt and Vue journeys from an installed tarball. |
+| `pnpm release:verify` | Full browser matrix and packed consumer certification. |
+
+Explore start, step navigation, finish, Escape, focus return, and a narrow screen.
+Keep source docs and packed-consumer evidence separate. Linux, Windows, framework
+floors, and hosted behavior still need their CI or deployment evidence. Read the
+final diff and obtain independent review before a meaningful change is merged.
+
 ## Quick fix
 
 Create a focused branch. Add a regression test. Run `pnpm verify`. Open a pull request with the result, verification, release note, and risk.
@@ -23,6 +42,15 @@ boundaries when each part can be reviewed independently. Keep migrations
 explicit and remove temporary compatibility code after the cutover.
 
 ## Dependency update
+
+`pnpm check:dependencies` checks actual install settings and exception expiry.
+Any exact exclusion needs an inline JSON comment with `reason`, `owner`, and
+UTC `expires`, within 24 hours. Remove the entry and comment after expiry.
+The checker is a repository-owned copy of
+`lupinum-oss/starters/_shared/check-dependency-policy.mjs`. Copy updates from that
+canonical file; do not maintain a separate implementation here.
+Generated consumer configuration is derived from the root workspace policy and
+checked with the same implementation before installation. CI checks expiry daily.
 
 Use Renovate for routine updates. Review release notes and lockfile changes. Do not bypass the 24-hour quarantine. Run `pnpm audit:all` and `pnpm verify`.
 

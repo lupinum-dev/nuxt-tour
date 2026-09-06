@@ -9,8 +9,18 @@
 - `playground/` is the smallest interactive Nuxt consumer.
 - `docs/content/docs/3.design/` records the public contract and its design decisions.
 - `docs/content/docs/4.implementation/` records the implementation status.
-- `docs/` is a packed-package consumer and the public documentation site.
+- `docs/` is a source-workspace consumer and the public documentation site.
+- `scripts/verify-packed-consumer.mjs` checks independent installed tarball consumers.
 - `scripts/` owns inert package certification. It does not publish.
+
+## Working procedure
+
+Read `MAINTAINING.md` for setup, commands, review, and recovery. Own an assigned
+change through diagnosis, focused checks, independent review, and cleanup.
+Preserve existing work. Explore changed user journeys in a real browser and run
+`pnpm verify` before handoff. Assigned maintenance includes routine pull requests,
+protected merge, and post-merge checks. npm publication retains its final
+protected approval. External settings need explicit task scope.
 
 ## Commands
 

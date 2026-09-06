@@ -61,6 +61,7 @@
     "access": "public"
   },
   "scripts": {
+    "check:dependencies": "node scripts/check-dependency-policy.mjs",
     "audit:all": "pnpm audit",
     "build": "nuxt-module-build prepare && nuxt-module-build build",
     "dev": "pnpm dev:prepare && nuxt dev playground",
@@ -73,18 +74,19 @@
     "lint": "eslint .",
     "pack:release": "node scripts/pack-release.mjs",
     "preview:pack": "node scripts/pack-release.mjs --preview",
-    "preview:verify": "pnpm preview:pack && node scripts/verify-packed-consumer.mjs --preview",
+    "preview:verify": "pnpm build && pnpm preview:pack && node scripts/verify-packed-consumer.mjs --preview && node scripts/verify-packed-consumer.mjs --preview --framework vue",
     "release:prepare": "changelogen --bump --clean",
-    "release:verify": "pnpm audit:all && pnpm verify:core && pnpm test:browser:release && pnpm pack:release && node scripts/verify-packed-consumer.mjs",
+    "release:verify": "pnpm verify:core && pnpm test:browser:release && pnpm pack:release && node scripts/verify-packed-consumer.mjs && node scripts/verify-packed-consumer.mjs --framework vue",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:browser": "playwright test --project=chromium",
     "test:browser:release": "playwright test",
     "test:docs": "playwright test test/browser/docs.test.ts --project=chromium",
+    "test:dependencies": "node scripts/test-dependency-policy.mjs",
     "test:types": "nuxt typecheck test/fixtures/basic && nuxt typecheck test/fixtures/layers/project",
     "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck && pnpm docs:typecheck",
     "verify": "pnpm verify:core && pnpm test:browser",
-    "verify:core": "pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm docs:build"
+    "verify:core": "pnpm check:dependencies && pnpm test:dependencies && pnpm audit:all && pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm docs:build"
   },
   "dependencies": {
     "@floating-ui/vue": "^2.0.1",
@@ -116,8 +118,10 @@
     "nuxt": "^4.5.2",
     "pkg-pr-new": "0.0.87",
     "typescript": "~5.9.3",
+    "vite": "8.2.2",
     "vitest": "^4.1.11",
     "vue": "3.5.42",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.11",
+    "yaml": "2.9.0"
   }
 }
