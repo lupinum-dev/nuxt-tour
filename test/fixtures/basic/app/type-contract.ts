@@ -1,4 +1,4 @@
-import { createTourPlugin } from '@lupinum/nuxt-tour/vue'
+import { createTourPlugin } from '../../../../src/runtime/vue'
 
 const onboarding = useNuxtTour('onboarding')
 

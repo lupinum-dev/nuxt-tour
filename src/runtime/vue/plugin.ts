@@ -1,6 +1,6 @@
 import { nextTick } from 'vue'
 import type { App, Plugin } from 'vue'
-import { tourNavigationAbort } from '../router'
+import { routeLocation, tourNavigationAbort } from '../router'
 import type { TourRouterAdapter } from '../router'
 import type { MaybePromise, TourDefinition, TourRoute, TourRuntimeOptions } from '../types'
 import { tourRuntimeKey } from './injection'
@@ -14,8 +14,8 @@ export interface TourPluginOptions extends TourRuntimeOptions {
 
 /** The structural part of Vue Router used by the tour runtime. */
 export interface VueRouterLike {
-  push(route: TourRoute): unknown
-  replace(route: TourRoute): unknown
+  push(route: ReturnType<typeof routeLocation>['location']): unknown
+  replace(route: ReturnType<typeof routeLocation>['location']): unknown
   afterEach?(handler: () => void): () => void
 }
 
@@ -27,13 +27,8 @@ function createVueRouterAdapter(router: VueRouterLike | undefined): TourRouterAd
   return {
     async navigate(route: TourRoute, signal: AbortSignal) {
       if (signal.aborted) throw tourNavigationAbort()
-      const shouldReplace = typeof route === 'object' && route.replace === true
-      let location = route
-      if (shouldReplace && typeof route === 'object') {
-        const { replace: _replace, ...destination } = route
-        location = destination
-      }
-      const navigate = shouldReplace ? router.replace : router.push
+      const { location, replace } = routeLocation(route)
+      const navigate = replace ? router.replace : router.push
       internalNavigations += 1
       try {
         const failure = await navigate.call(router, location)

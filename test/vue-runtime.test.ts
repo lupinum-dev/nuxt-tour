@@ -9,7 +9,7 @@ import type { TourController } from '../src/runtime/types'
 import { TourTargetRegistry } from '../src/runtime/targets'
 import TourHost from '../src/runtime/vue/TourHost.vue'
 import { createTourPlugin, installTour } from '../src/runtime/vue/plugin'
-import type { TourPluginOptions } from '../src/runtime/vue/plugin'
+import type { TourPluginOptions, VueRouterLike } from '../src/runtime/vue/plugin'
 import { createTourTargetDirective } from '../src/runtime/vue/tour-target-directive'
 import { useTour } from '../src/runtime/vue/use-tour'
 import { useTourTarget } from '../src/runtime/vue/use-tour-target'
@@ -354,18 +354,26 @@ describe('Vue runtime', () => {
   })
 
   it('uses router replacement without treating its own navigation as external', async () => {
+    const params = Object.freeze({ id: Object.freeze(['one', 2]) })
+    const query = Object.freeze({ tab: Object.freeze(['open', null]) })
     const definition = defineTour({
       id: 'vue-router-replace',
       steps: [{
         id: 'route',
-        route: { path: '/projects', query: { tab: 'open' }, replace: true },
+        route: { name: 'projects', params, query, replace: true },
         title: 'Route',
         content: 'Route',
       }],
     })
     let afterEach!: () => void
     const push = vi.fn()
-    const replace = vi.fn(() => {
+    const replace = vi.fn<VueRouterLike['replace']>((location) => {
+      if (typeof location !== 'string' && 'params' in location) {
+        const ids = location.params?.id
+        const tabs = location.query?.tab
+        if (Array.isArray(ids)) ids.push('router-owned')
+        if (Array.isArray(tabs)) tabs.push('router-owned')
+      }
       afterEach()
     })
     const installation = createTourInstallation({
@@ -391,7 +399,9 @@ describe('Vue runtime', () => {
 
     await start
     expect(push).not.toHaveBeenCalled()
-    expect(replace).toHaveBeenCalledWith({ path: '/projects', query: { tab: 'open' } })
+    expect(replace).toHaveBeenCalledWith({ name: 'projects', params: { id: ['one', 2, 'router-owned'] }, query: { tab: ['open', null, 'router-owned'] } })
+    expect(params.id).toEqual(['one', 2])
+    expect(query.tab).toEqual(['open', null])
     expect(installation.runtime.controller(definition).isActive.value).toBe(true)
     unregister()
     wrapper.unmount()
