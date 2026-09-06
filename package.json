@@ -74,6 +74,7 @@
     "lint": "eslint .",
     "pack:release": "node scripts/pack-release.mjs",
     "preview:pack": "node scripts/pack-release.mjs --preview",
+    "consumer:verify": "node scripts/verify-packed-consumer.mjs",
     "preview:verify": "pnpm build && pnpm preview:pack && node scripts/verify-packed-consumer.mjs --preview && node scripts/verify-packed-consumer.mjs --preview --framework vue",
     "release:prepare": "changelogen --bump --clean",
     "release:verify": "pnpm verify:core && pnpm test:browser:release && pnpm pack:release && node scripts/verify-packed-consumer.mjs && node scripts/verify-packed-consumer.mjs --framework vue",

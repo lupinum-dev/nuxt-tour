@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:net'
 import { pathToFileURL } from 'node:url'
+import { stripVTControlCharacters } from 'node:util'
 import { chromium, expect } from '@playwright/test'
 import { parseDocument } from 'yaml'
 import { checkDependencyPolicyFile } from './check-dependency-policy.mjs'
@@ -125,7 +126,7 @@ async function verifyJourney() {
       const timeout = setTimeout(() => reject(new Error(`Packed server did not start:\n${output}`)), 30_000)
       const read = (chunk) => {
         output += chunk.toString()
-        const address = output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]
+        const address = stripVTControlCharacters(output).match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]
         if (address) {
           clearTimeout(timeout)
           resolveReady(address)
