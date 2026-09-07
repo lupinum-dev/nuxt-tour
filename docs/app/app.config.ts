@@ -19,7 +19,7 @@ export default defineAppConfig({
     nav: { links: 'auto', socialIcons: true },
     social: { github: 'https://github.com/lupinum-dev/nuxt-tour', discord: 'https://discord.gg/RPH6SeA36N' },
     repository: { url: 'https://github.com/lupinum-dev/nuxt-tour', branch: 'main', contentDirectory: 'docs/content' },
-    analytics: { plausible: { scriptId: '' } },
+    analytics: { plausible: { scriptId: '-ZaZPkun5e2mtpSI1B6br' } },
     feedback: { enabled: true },
   },
 })
