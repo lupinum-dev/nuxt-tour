@@ -149,13 +149,11 @@ jobs:
           channel=latest; [[ "$RELEASE_VERSION" == *-* ]] && channel=next
           test "$(node -p "require('./release.json').distTag")" = "$channel"
           test "$(find . -maxdepth 1 -type f -name '*.tgz' | wc -l | tr -d ' ')" = 1
-          cd ..
-          npm publish release-artifacts/*.tgz \
+          npm publish "./$tarball" \
             --provenance \
             --access public \
             --tag "$channel" \
             --ignore-scripts
-          cd release-artifacts
           node --input-type=module <<'NODE'
           import { spawnSync } from 'node:child_process'
           import { appendFileSync, readFileSync } from 'node:fs'

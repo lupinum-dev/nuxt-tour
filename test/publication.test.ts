@@ -40,11 +40,12 @@ describe('retained publication boundary', () => {
     const shell = (workflow.jobs.publish.steps as { run?: string }[]).find(step => step.run?.includes('npm publish'))!.run!
     const checksum = shell.indexOf('sha256sum --check --strict SHA256SUMS')
     const oneTarball = shell.indexOf('find . -maxdepth 1 -type f -name \'*.tgz\'')
-    const publish = shell.indexOf('npm publish release-artifacts/*.tgz')
+    const publish = shell.indexOf('npm publish "./$tarball"')
 
     expect(checksum).toBeGreaterThan(-1)
     expect(oneTarball).toBeGreaterThan(checksum)
     expect(publish).toBeGreaterThan(oneTarball)
+    expect(shell).not.toContain('npm publish release-artifacts/*.tgz')
     expect(shell).toContain('--provenance')
     expect(shell).toContain('--ignore-scripts')
   })
