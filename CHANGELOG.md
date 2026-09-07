@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.1.3
+
+[compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.1.2...v0.1.3)
+
+### 🚀 Enhancements
+
+- **maintenance:** Verify real installed tour journeys ([#21](https://github.com/lupinum-dev/nuxt-tour/pull/21))
+
+### 🩹 Fixes
+
+- **deps:** Remove vulnerable qs from the docs lockfile ([#19](https://github.com/lupinum-dev/nuxt-tour/pull/19))
+- **vue:** Preserve readonly routes at the router boundary ([#20](https://github.com/lupinum-dev/nuxt-tour/pull/20))
+- **release:** Restrict retained publication to safe local files ([#22](https://github.com/lupinum-dev/nuxt-tour/pull/22))
+
+### 💅 Refactors
+
+- **release:** Publish the retained tarball directly ([#25](https://github.com/lupinum-dev/nuxt-tour/pull/25))
+
+### ✅ Tests
+
+- **vue:** Wait for observable tour completion ([#24](https://github.com/lupinum-dev/nuxt-tour/pull/24))
+
+### ❤️ Contributors
+
+- Matthias Amon <matthias@lupinum.com>
+
 ## v0.1.2
 
 - Align the default tour card, controls, arrow, and spotlight surfaces with the official Nuxt color system.
