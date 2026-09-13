@@ -19,7 +19,9 @@
 Nuxt Tour makes product tours feel like part of Nuxt and Vue. An application
 defines a typed tour, marks semantic targets, renders one host, and controls the
 journey from one composable. The library owns route changes, late targets,
-positioning, cleanup, focus, and failure diagnostics.
+positioning, cleanup, focus, and failure diagnostics. Nearby targets share a
+continuous moving spotlight. Customize actions and progress with Vue slots
+while retaining the default accessible card.
 
 Nuxt Tour is not an analytics product, visual editor, checklist system, or
 thin wrapper around another tour library.
@@ -82,7 +84,7 @@ Nuxt discovers definitions from each layer's `app/tours`, auto-imports the
 composables, and generates literal tour, step, and semantic target ID types. Add
 one `<TourHost />` near the root of the application.
 
-For plain Vue, import the runtime from `@lupinum/nuxt-tour/vue` and install
+For a complete [plain Vue setup](docs/content/docs/1.getting-started/3.vue.md), import the runtime from `@lupinum/nuxt-tour/vue` and install
 `createTourPlugin({ tours: [...] })`. Import `@lupinum/nuxt-tour/style.css` for
 the default theme or `structure.css` for layout rules only. The default theme
 follows the system color scheme and recognizes `.light`, `.dark`, and matching

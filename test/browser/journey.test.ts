@@ -146,7 +146,7 @@ test('honors reduced motion and class-based dark mode', async ({ page, goto }) =
   })).toEqual({
     width: '14px',
     height: '14px',
-    zIndex: '0',
+    zIndex: '2',
     fill: 'rgb(15, 23, 42)',
     stroke: 'rgb(51, 65, 85)',
   })

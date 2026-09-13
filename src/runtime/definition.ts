@@ -95,8 +95,8 @@ function validateRoute(route: unknown, tourId: string, stepId: string): void {
 function validateScroll(scroll: unknown, tourId: string, stepId: string): void {
   if (scroll === false) return
   if (!isRecord(scroll)) invalid('Scroll must be false or a ScrollIntoView options object.', tourId, stepId)
-  if (scroll.behavior !== undefined && scroll.behavior !== 'auto' && scroll.behavior !== 'smooth') {
-    invalid('Scroll behavior must be auto or smooth.', tourId, stepId)
+  if (scroll.behavior !== undefined && scroll.behavior !== 'auto' && scroll.behavior !== 'smooth' && scroll.behavior !== 'instant') {
+    invalid('Scroll behavior must be auto, instant, or smooth.', tourId, stepId)
   }
   for (const field of ['block', 'inline'] as const) {
     const value = scroll[field]
@@ -127,6 +127,12 @@ function validateStep(step: unknown, tourId: string): string {
   }
   if (step.placement !== undefined && !placements.has(String(step.placement))) {
     invalid('A step placement is invalid.', tourId, stepId)
+  }
+  if (step.gap !== undefined && (typeof step.gap !== 'number' || !Number.isFinite(step.gap) || step.gap < 0)) {
+    invalid('A step gap must be a finite, non-negative number.', tourId, stepId)
+  }
+  if (step.gap !== undefined && step.offset !== undefined) {
+    invalid('Use gap or offset, not both.', tourId, stepId)
   }
   if (step.offset !== undefined
     && (typeof step.offset !== 'number' || !Number.isFinite(step.offset) || step.offset < 0)) {

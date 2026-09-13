@@ -1,10 +1,10 @@
 <template>
   <figure class="recipe-media-step">
     <img
-      src="/recipes/habitat-overview.svg"
+      src="/recipes/project-overview.svg"
       width="640"
       height="360"
-      alt="Habitat restoration dashboard with progress and active work areas"
+      alt="Nuxt project dashboard with a code preview, progress, and active tasks"
     >
     <figcaption>
       Components make room for responsive images, video, live data, and your own design system.
