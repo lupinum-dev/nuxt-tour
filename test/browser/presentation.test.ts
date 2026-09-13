@@ -1,6 +1,9 @@
 import { expect, test } from '@nuxt/test-utils/playwright'
 
 test('moves one opening continuously and gates target access until aligned', async ({ page, goto }) => {
+  // Drive JS frames consistently even when a headless renderer throttles rAF.
+  // Geometry, CSS, and hit testing still use the real browser. This is not an FPS benchmark.
+  await page.clock.install()
   await goto('/motion', { waitUntil: 'hydration' })
   await page.getByTestId('start-motion').focus()
   await page.getByTestId('start-motion').press('Enter')
@@ -120,6 +123,7 @@ test('isolates the page before slow preparation can show a card', async ({ page,
 })
 
 test('keeps the arrow attached and ignores unrelated paused animations', async ({ page, goto }) => {
+  await page.clock.install()
   await goto('/motion', { waitUntil: 'hydration' })
   await page.getByTestId('start-motion').click()
   const root = page.locator('[data-tour-part="root"]')
@@ -155,13 +159,22 @@ test('keeps the arrow attached and ignores unrelated paused animations', async (
 
 test('Escape stops the native scroll as well as closing the tour', async ({ page, goto }) => {
   await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.evaluate(() => {
+    const state = window as typeof window & { scrollStops: unknown[] }
+    state.scrollStops = []
+    const scrollTo = Element.prototype.scrollTo
+    Element.prototype.scrollTo = function (this: Element, ...args: unknown[]): void {
+      state.scrollStops.push({ element: this.tagName, left: this.scrollLeft, top: this.scrollTop, args })
+      Reflect.apply(scrollTo, this, args)
+    }
+  })
   await page.getByTestId('start-scroll').click()
   await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-visual-phase', 'active')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(20)
   await page.keyboard.press('Escape')
   await expect(page.locator('[data-tour-part="root"]')).toHaveCount(0)
-  const movement = await page.evaluate(async () => {
+  const result = await page.evaluate(async () => {
     const positions: number[] = []
     const started = performance.now()
     await new Promise<void>((resolve) => {
@@ -172,9 +185,13 @@ test('Escape stops the native scroll as well as closing the tour', async ({ page
       }
       requestAnimationFrame(sample)
     })
-    return Math.max(...positions) - Math.min(...positions)
+    return {
+      movement: Math.max(...positions) - Math.min(...positions),
+      positions,
+      calls: (window as typeof window & { scrollStops: unknown[] }).scrollStops,
+    }
   })
-  expect(movement).toBeLessThan(2)
+  expect(result.movement, JSON.stringify(result)).toBeLessThan(2)
 })
 
 test('updates clear spacing between steps that share the same target', async ({ page, goto }) => {

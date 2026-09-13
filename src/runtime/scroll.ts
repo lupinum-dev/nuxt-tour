@@ -123,7 +123,14 @@ export function createTourScroller() {
       const containers = scrollContainers(target)
       const stopNative = () => {
         for (const element of containers) {
-          element.scrollTo?.({ left: element.scrollLeft, top: element.scrollTop, behavior: 'instant' })
+          const left = element.scrollLeft
+          const top = element.scrollTop
+          // Gecko can ignore an equal-position instant request during async
+          // scrolling. Force a real update, then restore before the next paint.
+          // Both directions cover clamped edges and reversed scroll origins.
+          for (const delta of [1, -1, 0]) {
+            element.scrollTo?.({ left: left + delta, top: top + delta, behavior: 'instant' })
+          }
         }
       }
       target.scrollIntoView(effective)
@@ -149,7 +156,7 @@ export function createTourScroller() {
           finished = true
           view.cancelAnimationFrame(frame)
           clearTimeout(timer)
-          signal.removeEventListener('abort', abort)
+          signal.removeEventListener('abort', stop)
           document.removeEventListener('visibilitychange', onVisibility)
           preference?.removeEventListener?.('change', onPreference)
           if (stopCurrent === stop) stopCurrent = undefined
@@ -159,7 +166,6 @@ export function createTourScroller() {
           stopNative()
           finish(abortError())
         }
-        const abort = () => stop()
         const onVisibility = () => {
           if (document.hidden) {
             stopNative()
@@ -208,7 +214,7 @@ export function createTourScroller() {
           finish()
         }, maximumSettleTime)
         stopCurrent = stop
-        signal.addEventListener('abort', abort, { once: true })
+        signal.addEventListener('abort', stop, { once: true })
         document.addEventListener('visibilitychange', onVisibility)
         preference?.addEventListener?.('change', onPreference)
         if (document.hidden) {

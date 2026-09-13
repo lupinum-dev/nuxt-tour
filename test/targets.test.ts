@@ -223,7 +223,14 @@ describe('native scroll ownership and alignment', () => {
     })
     Object.defineProperty(target, 'getBoundingClientRect', { value: () => new DOMRect(0, window.innerHeight / 2 - 20, 100, 40) })
     const scroll = vi.fn()
-    const stop = vi.fn()
+    let nativeScrolling = true
+    const stop = vi.fn((position: ScrollToOptions) => {
+      // Model engines that coalesce equal-position instant requests and leave
+      // their asynchronous scroll running unless the position actually changes.
+      if (position.top !== parent.scrollTop) nativeScrolling = false
+      parent.scrollTop = position.top ?? parent.scrollTop
+      parent.scrollLeft = position.left ?? parent.scrollLeft
+    })
     Object.defineProperty(target, 'scrollIntoView', { value: scroll })
     Object.defineProperty(parent, 'scrollTo', { value: stop })
     const scroller = createTourScroller()
@@ -239,6 +246,8 @@ describe('native scroll ownership and alignment', () => {
       await ready
       expect(frame).toBeDefined()
       scroller.stop()
+      expect(nativeScrolling).toBe(false)
+      expect(parent.scrollTop).toBe(200)
       expect(stop).toHaveBeenCalledWith({ left: parent.scrollLeft, top: 200, behavior: 'instant' })
       expect(frame).toBeUndefined()
     }
