@@ -171,7 +171,8 @@ Final checks:
 - The final WebKit, mobile Chromium, and mobile WebKit matrix passed 49 tests.
   Two forced-colors tests were skipped on WebKit, which does not support that
   emulation mode. Firefox is excluded from this local result as explained below.
-- The rebuilt tarball passed mounted journeys in Nuxt 4.5.2 and Vue 3.5.42,
+- The implementation preview tarball (development version 0.1.3) passed mounted
+  journeys in Nuxt 4.5.2 and Vue 3.5.42,
   including customized actions and progress sections, motion-off, translated
   headings, `gap`, and native instant scrolling. Its SHA-256 is
   `e625eb15fafa97a84ec066d6b64760c554dad9c85899a0144b43d67ba43166ab`.
@@ -186,6 +187,9 @@ exploratory traces do not replace assistive-technology or physical-phone tests.
 The normal pull-request review is still required before merging.
 
 ## Remaining release evidence
+
+Version 0.2.0 requires its own retained CI candidate. The development-preview
+checksum above is historical evidence and is not the artifact for publication.
 
 The installed Playwright Firefox build cannot start on this host. Both headless
 and headed attempts failed before page navigation with a macOS sandbox-extension
