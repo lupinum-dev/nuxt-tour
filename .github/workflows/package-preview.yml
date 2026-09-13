@@ -28,6 +28,7 @@ jobs:
       - run: corepack enable pnpm && corepack prepare pnpm@11.21.0 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - run: pnpm docs:build
       - id: artifact
         env:
           RELEASE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

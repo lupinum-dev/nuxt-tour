@@ -9,6 +9,7 @@ import { stripVTControlCharacters } from 'node:util'
 import { chromium, expect } from '@playwright/test'
 import { parseDocument } from 'yaml'
 import { checkDependencyPolicyFile } from './check-dependency-policy.mjs'
+import { verifyPackageAgentDocs } from './package-agent-docs.mjs'
 
 const artifactsDirectory = process.argv.includes('--preview') ? '.preview-artifacts' : 'release-artifacts'
 const framework = readArgument('--framework') ?? 'nuxt'
@@ -62,10 +63,11 @@ try {
   }
   const installedPackage = await realpath(join(consumer, 'node_modules', ...pkg.name.split('/')))
   if (!installedPackage.startsWith(`${await realpath(consumer)}${sep}`)) throw new Error('Packed package resolved outside its isolated consumer.')
+  await verifyPackageAgentDocs(installedPackage)
   run(process.execPath, ['--input-type=module', '--eval', `
     const root = await import(${JSON.stringify(pkg.name)})
     if (typeof root.default !== 'function') throw new Error('Nuxt module default export is missing.')
-    for (const entry of ['vue', 'style.css', 'structure.css']) {
+    for (const entry of ['vue', 'agent-docs', 'style.css', 'structure.css']) {
       const path = import.meta.resolve(${JSON.stringify(pkg.name)} + '/' + entry)
       if (!path.startsWith(new URL('./node_modules/', import.meta.url).href)) throw new Error('Export resolved outside consumer: ' + path)
       await import('node:fs/promises').then(fs => fs.access(new URL(path)))

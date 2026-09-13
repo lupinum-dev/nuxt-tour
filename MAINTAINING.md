@@ -58,6 +58,12 @@ Use Renovate for routine updates. Review release notes and lockfile changes. Do 
 
 Follow [docs/WRITING.md](docs/WRITING.md). Run `pnpm docs:build`. Verify links, mobile navigation, search, analytics, and feedback on the deployed preview.
 
+The getting-started page owns the coding-agent onboarding prompt. Run
+`pnpm docs:onboarding` after editing its marked block to update the README.
+Keep `scripts/package-agent-docs.mjs` aligned with the reviewed Lupinum OSS
+shared implementation. The package exports the rendered documentation snapshot
+at `./agent-docs`. Do not add an install hook or consumer skill.
+
 Vercel uses `docs/` as the Root Directory. Enable source files outside the Root
 Directory because the documentation build needs this workspace package. Keep
 `vercel.json` in `docs/`.
