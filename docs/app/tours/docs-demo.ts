@@ -15,6 +15,7 @@ export default defineTour({
       content: 'Try changing the filter. Target interaction keeps useful controls available while everything else stays focused.',
       placement: 'bottom-start',
       scrollTarget: 'demo-shell',
+      scroll: { block: 'nearest', inline: 'nearest' },
       interaction: 'target',
     },
     {
@@ -24,6 +25,7 @@ export default defineTour({
       content: 'Name the product concept once. Nuxt discovers the tour and gives useNuxtTour() exact tour and step IDs.',
       placement: 'top-start',
       scrollTarget: 'demo-shell',
+      scroll: { block: 'nearest', inline: 'nearest' },
     },
     {
       id: 'action',

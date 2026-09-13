@@ -18,6 +18,10 @@
 }
 
 [data-tour-part='spotlight'] {
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  padding: var(--tour-spotlight-padding, 0px);
   z-index: 1;
   pointer-events: none;
 }
@@ -34,7 +38,7 @@
   --tour-enter-origin: center;
   isolation: isolate;
   z-index: 3;
-  max-width: min(24rem, calc(100vw - 2rem));
+  max-width: min(24rem, calc(100vw - 2rem), var(--tour-available-width, 100vw));
   pointer-events: none;
 }
 
@@ -69,7 +73,7 @@
   z-index: 1;
   transform-origin: var(--tour-enter-origin);
   max-block-size: calc(100vh - 2rem);
-  max-block-size: calc(100dvh - 2rem);
+  max-block-size: min(calc(100dvh - 2rem), var(--tour-available-height, 100dvh));
   overflow: auto;
   overscroll-behavior: contain;
   pointer-events: auto;
@@ -77,9 +81,9 @@
 
 [data-tour-part='arrow'] {
   position: absolute;
-  z-index: 0;
-  width: 0.875rem;
-  height: 0.875rem;
+  z-index: 2;
+  width: var(--tour-arrow-size, 0.875rem);
+  height: var(--tour-arrow-size, 0.875rem);
   overflow: visible;
   pointer-events: none;
 }
@@ -95,4 +99,20 @@
   position: absolute;
   inset-block-start: 0.5rem;
   inset-inline-end: 0.5rem;
+}
+
+[data-tour-part='loading'] {
+  position: fixed;
+  z-index: 4;
+  inset-inline: 1rem;
+  inset-block-end: max(1rem, env(safe-area-inset-bottom));
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  margin-inline: auto;
+  pointer-events: auto;
+}
+
+[data-tour-part='surface'] {
+  position: relative;
+  pointer-events: none;
 }

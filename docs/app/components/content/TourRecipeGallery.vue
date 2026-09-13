@@ -734,4 +734,7 @@ async function copyRecipe(): Promise<void> {
     box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 32%);
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .recipe-code summary svg { transition: none; }
+}
 </style>

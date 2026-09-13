@@ -139,6 +139,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       __tourInitialSpotlightSeenWhileScrolling?: boolean
       __tourInitialRevealMaximumOffset?: number
       __tourInitialRevealStartedClosed?: boolean
+      __tourInitialApproachAt?: number
       __tourInitialStartedAt?: number
       __tourInitialRevealAt?: number
     }
@@ -147,6 +148,21 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
     state.__tourInitialSpotlightSeenWhileScrolling = false
     state.__tourInitialRevealMaximumOffset = 0
     state.__tourInitialRevealStartedClosed = false
+    let previousSampleAt = performance.now()
+    let previousSampleY = window.scrollY
+    const approach = () => {
+      const now = performance.now()
+      const rect = document.querySelector('[data-tour-target="demo-shell"]')?.getBoundingClientRect()
+      const velocity = Math.abs(window.scrollY - previousSampleY) / Math.max(1, now - previousSampleAt)
+      previousSampleAt = now
+      previousSampleY = window.scrollY
+      const proximity = Math.min(220, Math.max(96, window.innerHeight * 0.18))
+      if (state.__tourInitialStartedAt !== undefined && rect
+        && Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2) <= proximity
+        && velocity <= 1.5) state.__tourInitialApproachAt ??= now
+      if (state.__tourInitialRevealAt === undefined) requestAnimationFrame(approach)
+    }
+    requestAnimationFrame(approach)
     const startButton = [...document.querySelectorAll<HTMLButtonElement>('button')]
       .find(button => button.textContent?.includes('Try the live tour'))
     startButton?.addEventListener('click', () => {
@@ -222,8 +238,8 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
   expect(await page.locator('[data-tour-part="arrow"]').evaluate(element => ({
     arrowZIndex: getComputedStyle(element).zIndex,
     cardZIndex: getComputedStyle(element.previousElementSibling!).zIndex,
-    isolated: getComputedStyle(element.parentElement!).isolation,
-  }))).toEqual({ arrowZIndex: '0', cardZIndex: '1', isolated: 'isolate' })
+    isolated: getComputedStyle(element.closest('[data-tour-part="positioner"]')!).isolation,
+  }))).toEqual({ arrowZIndex: '2', cardZIndex: '1', isolated: 'isolate' })
   await waitForAnimationFrames(page, 4)
   expectPaintedReveal(await stopTourPaintSampling(page), 'workspace')
   expect(await page.evaluate(() => {
@@ -233,6 +249,7 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       __tourInitialSpotlightSeenWhileScrolling?: boolean
       __tourInitialRevealMaximumOffset?: number
       __tourInitialRevealStartedClosed?: boolean
+      __tourInitialApproachAt?: number
       __tourInitialStartedAt?: number
       __tourInitialRevealAt?: number
     }
@@ -254,14 +271,16 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
     revealStartedClosed: true,
     revealLatency: expect.any(Number),
   })
+  // Native smooth-scroll duration depends on distance and browser. Bound the
+  // tour's response once the target is near and slow, not the whole page trip.
   expect(await page.evaluate(() => {
     const state = window as typeof window & {
-      __tourInitialStartedAt?: number
+      __tourInitialApproachAt?: number
       __tourInitialRevealAt?: number
     }
-    if (state.__tourInitialStartedAt === undefined || state.__tourInitialRevealAt === undefined) return Infinity
-    return state.__tourInitialRevealAt - state.__tourInitialStartedAt
-  })).toBeLessThan(375)
+    if (state.__tourInitialApproachAt === undefined || state.__tourInitialRevealAt === undefined) return Infinity
+    return state.__tourInitialRevealAt - state.__tourInitialApproachAt
+  })).toBeLessThan(200)
   expect(await page.evaluate(() => (
     (window as typeof window & { __tourInitialRevealMaximumOffset?: number }).__tourInitialRevealMaximumOffset ?? Infinity
   ))).toBeLessThanOrEqual(220)
@@ -283,15 +302,16 @@ test('the documentation is interactive, responsive, and dark-mode aware', async 
       __tourRestartMinimumOpacity?: number
     }
     const card = document.querySelector<HTMLElement>('[data-tour-part="card"]')
+    const positioner = card?.closest('[data-tour-part="positioner"]')
     const restart = [...document.querySelectorAll<HTMLButtonElement>('button')]
       .find(button => button.textContent?.includes('Restart live tour'))
     const sample = () => {
       const cardHeight = card?.getBoundingClientRect().height ?? 0
-      const positionerOpacity = card?.parentElement
-        ? Number.parseFloat(getComputedStyle(card.parentElement).opacity)
+      const positionerOpacity = positioner
+        ? Number.parseFloat(getComputedStyle(positioner).opacity)
         : 0
-      const positionerVisibility = card?.parentElement
-        ? getComputedStyle(card.parentElement).visibility
+      const positionerVisibility = positioner
+        ? getComputedStyle(positioner).visibility
         : 'hidden'
       if (positionerOpacity > 0.05 && positionerVisibility !== 'hidden') {
         state.__tourCardHeightMinimum = Math.min(state.__tourCardHeightMinimum ?? cardHeight, cardHeight)
@@ -563,7 +583,7 @@ test('the recipe lab runs rich content, live controls, refs, and centered steps'
       visible: state.__tourVisibleWhileScrolling,
     }
   })).toEqual({ shadeMissing: false, visible: true })
-  await expect(page.locator('[data-tour-part="card"] img')).toHaveAttribute('src', '/recipes/habitat-overview.svg')
+  await expect(page.locator('[data-tour-part="card"] img')).toHaveAttribute('src', '/recipes/project-overview.svg')
   await page.getByRole('button', { name: 'Finish' }).click()
 
   await page.getByRole('button', { name: /Live controls/u }).click()

@@ -160,6 +160,7 @@ async function verifyJourney() {
     await start.click()
     const dialog = page.getByRole('dialog', { name: 'Welcome', exact: true })
     await expect(dialog).toBeVisible()
+    await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-motion', 'none')
     await expect(page.getByTestId('step')).toHaveText('welcome')
     await expect(page.locator('[data-tour-target="welcome"]')).toBeVisible()
     await dialog.getByRole('button', { name: 'Finish', exact: true }).click()
@@ -182,11 +183,12 @@ async function writeNuxtConsumer() {
   await writeFile(join(consumer, 'nuxt.config.ts'), `export default defineNuxtConfig({
   modules: [${JSON.stringify(pkg.name)}],
   compatibilityDate: '2026-08-29',
+  nuxtTour: { motion: 'none' },
 })\n`)
   await writeFile(join(consumer, 'tsconfig.json'), '{ "extends": "./.nuxt/tsconfig.json" }\n')
   await writeFile(join(consumer, 'app', 'tours', 'onboarding.ts'), `export default defineTour({
   id: 'onboarding',
-  steps: [{ id: 'welcome', target: 'welcome', title: 'Welcome', content: 'Packed consumer tour' }],
+  steps: [{ id: 'welcome', target: 'welcome', title: 'Original title', content: 'Packed consumer tour', gap: 16, scroll: { behavior: 'instant' } }],
 })\n`)
   await writeFile(join(consumer, 'app', 'type-contract.ts'), `const tour = useNuxtTour('onboarding')
 void tour.goTo('welcome')
@@ -207,7 +209,10 @@ tour.on('tour:end', event => { result.value = event.reason })
     <button v-tour-target="'welcome'" :disabled="!mounted" @click="tour.start()">Start tour</button>
     <p role="status">{{ result }}</p>
     <p data-testid="step">{{ tour.currentStepId.value }}</p>
-    <TourHost />
+    <TourHost :labels="{ step: () => ({ title: 'Welcome' }) }">
+      <template #progress="{ index, total, labels }"><p>{{ labels.progress(index + 1, total) }}</p></template>
+      <template #actions="{ controller, pending, labels }"><button :disabled="pending" @click="controller.next()">{{ labels.finish }}</button></template>
+    </TourHost>
   </main>
 </template>\n`)
 }
@@ -222,9 +227,10 @@ async function writeVueConsumer() {
   await writeFile(join(consumer, 'src', 'main.ts'), `import { createApp, defineComponent, h, ref } from 'vue'
 import { TourHost, createTourPlugin, defineTour, useTour, useTourTarget } from ${JSON.stringify(`${pkg.name}/vue`)}
 import ${JSON.stringify(`${pkg.name}/style.css`)}
+import type { TourSectionSlotProps } from ${JSON.stringify(`${pkg.name}/vue`)}
 const onboarding = defineTour({
   id: 'onboarding',
-  steps: [{ id: 'welcome', target: 'welcome', title: 'Welcome', content: 'Packed Vue consumer tour' }],
+  steps: [{ id: 'welcome', target: 'welcome', title: 'Original title', content: 'Packed Vue consumer tour', gap: 16, scroll: { behavior: 'instant' } }],
 })
 const App = defineComponent({
   setup() {
@@ -237,11 +243,14 @@ const App = defineComponent({
       h('button', { ref: target, 'data-tour-target': 'welcome', onClick: () => tour.start() }, 'Start tour'),
       h('p', { role: 'status' }, result.value),
       h('p', { 'data-testid': 'step' }, tour.currentStepId.value ?? ''),
-      h(TourHost),
+      h(TourHost, { labels: { step: () => ({ title: 'Welcome' }) } }, {
+        progress: ({ index, total, labels }: TourSectionSlotProps) => h('p', labels.progress(index + 1, total)),
+        actions: ({ controller, pending, labels }: TourSectionSlotProps) => h('button', { disabled: pending, onClick: () => controller.next() }, labels.finish),
+      }),
     ])
   },
 })
-createApp(App).use(createTourPlugin({ tours: [onboarding] })).mount('#app')\n`)
+createApp(App).use(createTourPlugin({ tours: [onboarding], motion: 'none' })).mount('#app')\n`)
   await writeFile(join(consumer, 'src', 'type-contract.ts'), `import { defineTour, useTour } from ${JSON.stringify(`${pkg.name}/vue`)}
 const tour = useTour(defineTour({ id: 'typed', steps: [{ id: 'known', title: 'Known', content: 'Type contract' }] }))
 void tour.goTo('known')

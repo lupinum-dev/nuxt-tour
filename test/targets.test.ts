@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from 'vitest'
-import { sampleScrollReveal, scrollTourTarget } from '../src/runtime/scroll'
+import { describe, expect, it, vi } from 'vitest'
+import { sampleScrollReveal, createTourScroller, needsTourScroll, usesSmoothScroll } from '../src/runtime/scroll'
+
+const scrollTourTarget = (...args: Parameters<ReturnType<typeof createTourScroller>['scroll']>) => createTourScroller().scroll(...args)
 
 describe('scroll reveal decisions', () => {
   it('waits for a nearby target to decelerate across stable samples', () => {
@@ -201,5 +203,108 @@ describe('tour target scrolling', () => {
     await scrolling
     expect(revealed).toBe(true)
     target.remove()
+  })
+})
+
+describe('native scroll ownership and alignment', () => {
+  it('keeps cancellation after early reveal while a sticky target stays still', async () => {
+    const parent = document.createElement('div')
+    parent.style.overflowY = 'auto'
+    const target = document.createElement('div')
+    parent.append(target)
+    document.body.append(parent)
+    let frame: FrameRequestCallback | undefined
+    const schedule = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frame = callback
+      return 1
+    })
+    const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {
+      frame = undefined
+    })
+    Object.defineProperty(target, 'getBoundingClientRect', { value: () => new DOMRect(0, window.innerHeight / 2 - 20, 100, 40) })
+    const scroll = vi.fn()
+    let nativeScrolling = true
+    const stop = vi.fn((position: ScrollToOptions) => {
+      // Model engines that coalesce equal-position instant requests and leave
+      // their asynchronous scroll running unless the position actually changes.
+      if (position.top !== parent.scrollTop) nativeScrolling = false
+      parent.scrollTop = position.top ?? parent.scrollTop
+      parent.scrollLeft = position.left ?? parent.scrollLeft
+    })
+    Object.defineProperty(target, 'scrollIntoView', { value: scroll })
+    Object.defineProperty(parent, 'scrollTo', { value: stop })
+    const scroller = createTourScroller()
+    const started = window.performance.now()
+    try {
+      const ready = scroller.scroll(target, { behavior: 'smooth', block: 'center' }, new AbortController().signal)
+      for (let time = 16; time <= 320; time += 16) {
+        parent.scrollTop += 10
+        const callback = frame
+        frame = undefined
+        callback?.(started + time)
+      }
+      await ready
+      expect(frame).toBeDefined()
+      scroller.stop()
+      expect(nativeScrolling).toBe(false)
+      expect(parent.scrollTop).toBe(200)
+      expect(stop).toHaveBeenCalledWith({ left: parent.scrollLeft, top: 200, behavior: 'instant' })
+      expect(frame).toBeUndefined()
+    }
+    finally {
+      scroller.stop()
+      schedule.mockRestore()
+      cancel.mockRestore()
+      parent.remove()
+    }
+  })
+
+  it('respects percentage padding, RTL alignment, and an already centered target', () => {
+    const parent = document.createElement('div')
+    const target = document.createElement('div')
+    parent.style.overflowX = 'auto'
+    parent.style.overflowY = 'auto'
+    parent.append(target)
+    document.body.append(parent)
+    let top = 10
+    Object.defineProperties(parent, {
+      clientWidth: { value: 200 }, clientHeight: { value: 1000 },
+      scrollWidth: { value: 400 }, scrollHeight: { value: 2000 },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, 200, 1000) },
+    })
+    Object.defineProperty(target, 'getBoundingClientRect', { value: () => new DOMRect(0, top, 40, 40) })
+    parent.scrollTop = 100
+    parent.style.scrollPaddingTop = '10%'
+    expect(needsTourScroll(target, { block: 'start' })).toBe(true)
+    parent.style.scrollPaddingTop = '0px'
+    target.style.scrollMarginTop = '20px'
+    expect(needsTourScroll(target, { block: 'nearest' })).toBe(true)
+    target.style.scrollMarginTop = '0px'
+    top = 480
+    expect(needsTourScroll(target, { block: 'center' })).toBe(false)
+    parent.style.direction = 'rtl'
+    parent.scrollLeft = -100
+    expect(needsTourScroll(target, { block: 'center', inline: 'start' })).toBe(true)
+    parent.remove()
+  })
+
+  it('includes a shadow host and its ancestors in scroll decisions', () => {
+    const host = document.createElement('div')
+    host.style.overflowY = 'auto'
+    host.style.scrollBehavior = 'smooth'
+    const target = document.createElement('button')
+    host.attachShadow({ mode: 'open' }).append(target)
+    document.body.append(host)
+    Object.defineProperties(host, {
+      clientWidth: { value: 100 }, clientHeight: { value: 100 },
+      scrollWidth: { value: 100 }, scrollHeight: { value: 300 },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, 100, 100) },
+    })
+    Object.defineProperty(target, 'getBoundingClientRect', { value: () => new DOMRect(0, 150, 40, 40) })
+
+    expect(target.parentElement).toBeNull()
+    expect(usesSmoothScroll(target, 'auto')).toBe(true)
+    expect(needsTourScroll(target, { block: 'nearest' })).toBe(true)
+    host.remove()
   })
 })

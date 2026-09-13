@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.2.0
+
+[compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.1.3...v0.2.0)
+
+### Features
+
+- Move and resize one spotlight between nearby visible targets, with adaptive timing and continuous redirection.
+- Add the application-level `motion: 'auto' | 'none'` option for Nuxt and Vue. Automatic motion respects reduced-motion preferences.
+- Add `gap` for clear spacing beyond the spotlight and arrow, plus a themeable arrow size.
+- Add typed `actions` and `progress` slots, tour identity in slot context, and reactive translated headings through `labels.step`.
+- Add cancellable loading feedback during slow preparation, improve narrow-screen card layout, and update the developer-focused documentation demos.
+
+### Fixes
+
+- Stop native scrolling when a tour is cancelled, including after early card reveal.
+- Block modal background input from the first covered frame and restore focus correctly after cancellation.
+- Keep the arrow attached during card animation and prevent unrelated paused animations from stalling navigation.
+- Accept native `scroll.behavior: 'instant'` and remove button scaling under reduced motion.
+- Correct preparation cleanup and custom-card error-handling examples.
+
+### Compatibility
+
+- Existing definitions, controllers, and `offset` values keep their meaning. Use either `gap` or `offset` on a step.
+- The default clear gap is 12 CSS pixels. Custom CSS should target `data-tour-part` attributes without assuming the internal parent-child structure.
+- No new runtime dependency. The complete default UI remains within the 30 KiB gzip budget, including CSS and dependencies, with Vue external.
+
+### Maintenance
+
+- Add a reproducible bundle budget check and browser regressions for motion, cancellation, and initial interaction isolation.
+- Enable documentation analytics and CodeRabbit review ([#28](https://github.com/lupinum-dev/nuxt-tour/pull/28)).
+
 ## v0.1.3
 
 [compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.1.2...v0.1.3)

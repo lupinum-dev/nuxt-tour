@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, inject, nextTick, ref } from 'vue'
+import { defineAsyncComponent, defineComponent, h, inject, nextTick, ref } from 'vue'
 import type { App, InjectionKey } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { defineTour } from '../src/runtime/definition'
-import type { TourController } from '../src/runtime/types'
+import type { TourCardSlotProps, TourController, TourSectionSlotProps } from '../src/runtime/types'
 import { TourTargetRegistry } from '../src/runtime/targets'
 import TourHost from '../src/runtime/vue/TourHost.vue'
 import { createTourPlugin, installTour } from '../src/runtime/vue/plugin'
@@ -125,7 +125,7 @@ describe('Vue runtime', () => {
     expect(spotlight).not.toBeNull()
     expect(arrow).toBeInstanceOf(SVGSVGElement)
     expect(arrow?.getAttribute('viewBox')).toBe('0 0 14 14')
-    expect(arrow?.querySelector('path')?.getAttribute('d')).toBe('M1 8.5 6.15 2.35Q7 1.4 7.85 2.35L13 8.5Z')
+    expect(arrow?.getAttribute('aria-hidden')).toBe('true')
 
     document.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button:last-child')?.click()
     await vi.waitFor(() => {
@@ -136,6 +136,80 @@ describe('Vue runtime', () => {
     expect(document.querySelector('[data-tour-part="spotlight"]')).toBe(spotlight)
     stopFirst()
     stopSecond()
+    wrapper.unmount()
+  })
+
+  it('customizes actions and progress without replacing the accessible default content', async () => {
+    const definition = defineTour({ id: 'sections', steps: [{ id: 'one', title: 'Default title', content: 'Default description' }] })
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost, { labels: { finish: 'Done' } }, {
+          progress: ({ index, total, labels }: TourSectionSlotProps) => h('output', labels.progress(index + 1, total)),
+          actions: ({ controller, pending, labels }: TourSectionSlotProps) => h('button', { disabled: pending, onClick: () => controller.next() }, labels.finish),
+        })
+      },
+    })
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [createTourPlugin({ tours: [definition] })] } })
+    await controller.start()
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!
+    expect(dialog.getAttribute('aria-label')).toBe('Default title')
+    expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent).toBe('Default description')
+    expect(dialog.querySelector('output')?.textContent).toBe('Step 1 of 1')
+    expect(dialog.querySelector('[data-tour-part="close"]')).not.toBeNull()
+    expect(dialog.querySelector('[data-tour-part="actions"]')?.textContent).toBe('Done')
+    dialog.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button')!.click()
+    await vi.waitFor(() => expect(controller.isActive.value).toBe(false))
+    wrapper.unmount()
+  })
+
+  it('gives the whole-card slot precedence over section slots', async () => {
+    const definition = defineTour({ id: 'precedence', steps: [{ id: 'one', title: 'Title', content: 'Description' }] })
+    let controller!: TourController<'one'>
+    const sections = vi.fn(() => h('p', 'Ignored section'))
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost, null, {
+          card: ({ descriptionId }: TourCardSlotProps) => h('p', { id: descriptionId }, 'Complete card'),
+          progress: sections,
+          actions: sections,
+        })
+      },
+    })
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [createTourPlugin({ tours: [definition] })] } })
+    await controller.start()
+    expect(sections).not.toHaveBeenCalled()
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Complete card')
+    await controller.cancel()
+    wrapper.unmount()
+  })
+
+  it('keeps async Vue content from remounting a cancelled tour', async () => {
+    let finishLoading!: (component: ReturnType<typeof defineComponent>) => void
+    const content = defineAsyncComponent({
+      loader: () => new Promise<ReturnType<typeof defineComponent>>((resolve) => {
+        finishLoading = resolve
+      }),
+      loadingComponent: defineComponent(() => () => h('p', 'Loading content')),
+      delay: 0,
+    })
+    const definition = defineTour({ id: 'async-content', steps: [{ id: 'one', title: 'Async report', content }] })
+    let controller!: TourController<'one'>
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost)
+      },
+    })
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [createTourPlugin({ tours: [definition] })] } })
+    await controller.start()
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Loading content')
+    await controller.cancel()
+    finishLoading(defineComponent(() => () => h('p', 'Loaded content')))
+    await nextTick()
+    expect(document.querySelector('[data-tour-part="root"]')).toBeNull()
     wrapper.unmount()
   })
 
@@ -595,6 +669,45 @@ describe('Vue runtime', () => {
     await start
 
     expect(controller.isActive.value).toBe(false)
+    wrapper.unmount()
+  })
+  it('reactively translates heading and dialog names without changing the definition', async () => {
+    const definition = defineTour({ id: 'localized', steps: [{ id: 'welcome', title: 'Original', content: 'Content' }] })
+    const locale = ref<'en' | 'de' | 'empty'>('en')
+    const translations = {
+      en: { title: 'Welcome', ariaLabel: 'Welcome tour' },
+      de: { title: 'Willkommen', ariaLabel: 'Willkommen zur Tour' },
+      empty: { title: '  ', ariaLabel: '' },
+    }
+    let controller!: TourController<'welcome'>
+    let context: TourSectionSlotProps | undefined
+    const App = defineComponent({
+      setup() {
+        controller = useTour(definition)
+        return () => h(TourHost, { labels: { step: () => translations[locale.value] } }, {
+          progress: (props: TourSectionSlotProps) => {
+            context = props
+            return h('p', props.title)
+          },
+        })
+      },
+    })
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [createTourPlugin({ tours: [definition], motion: 'none' })] } })
+    await controller.start()
+    expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-motion')).toBe('none')
+    expect(context?.tourId).toBe('localized')
+    expect(context?.ariaLabel).toBe('Welcome tour')
+    locale.value = 'de'
+    await nextTick()
+    expect(document.querySelector('[data-tour-part="title"]')?.textContent).toBe('Willkommen')
+    expect(document.querySelector('[data-tour-part="card"]')?.getAttribute('aria-label')).toBe('Willkommen zur Tour')
+    expect(context?.title).toBe('Willkommen')
+    expect(controller.currentStep.value?.title).toBe('Original')
+    locale.value = 'empty'
+    await nextTick()
+    expect(document.querySelector('[data-tour-part="card"]')?.getAttribute('aria-label')).toBe('Original')
+    expect(context?.title).toBe('Original')
+    await controller.cancel()
     wrapper.unmount()
   })
 })

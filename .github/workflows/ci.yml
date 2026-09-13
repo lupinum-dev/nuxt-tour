@@ -37,6 +37,16 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium firefox webkit
       - if: github.event.schedule != '23 4 * * *'
         run: pnpm release:verify
+      - if: failure()
+        name: Retain browser failure evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-failures
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
       - if: github.event.schedule != '23 4 * * *'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

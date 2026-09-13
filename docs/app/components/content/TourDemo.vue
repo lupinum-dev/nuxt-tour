@@ -6,11 +6,11 @@ const errorMessage = ref('')
 
 const projects = computed(() => {
   const items = [
-    { name: 'Wetland Atlas', detail: '12 tasks', color: 'mint', active: true },
-    { name: 'Solar Commons', detail: '8 tasks', color: 'sun', active: true },
-    { name: 'Forest Archive', detail: 'Complete', color: 'coral', active: false },
+    { name: 'Nuxt starter', detail: '12 tasks', color: 'mint', active: true },
+    { name: 'Component library', detail: '8 tasks', color: 'sun', active: true },
+    { name: 'Documentation site', detail: 'Complete', color: 'coral', active: false },
   ]
-  if (created.value) items.unshift({ name: 'New habitat study', detail: 'Just now', color: 'blue', active: true })
+  if (created.value) items.unshift({ name: 'New Nuxt app', detail: 'Just now', color: 'blue', active: true })
   return filter.value === 'active' ? items.filter(project => project.active) : items
 })
 
@@ -40,7 +40,7 @@ function createProject(): void {
         <h2 id="tour-demo-title">
           Try the actual library
         </h2>
-        <p>Click through nearby, distant, downward, and upward targets. Each move uses the same polished adaptive timing.</p>
+        <p>Try step navigation, interactive targets, and scrolling in a Nuxt project workspace.</p>
       </div>
       <button
         type="button"
@@ -67,7 +67,7 @@ function createProject(): void {
         <span />
         <span />
         <span />
-        <p>app.lupinum.test/projects</p>
+        <p>localhost:3000/projects</p>
       </div>
 
       <div class="demo-app">
@@ -111,7 +111,7 @@ function createProject(): void {
         <div class="demo-main">
           <header class="demo-workspace">
             <div>
-              <p>Friday, 29 August</p>
+              <p>Nuxt workspace</p>
               <h3>Projects</h3>
             </div>
             <button
@@ -174,7 +174,7 @@ function createProject(): void {
                 :data-color="project.color"
               >
                 <Icon
-                  name="lucide:leaf"
+                  name="lucide:folder-code"
                   aria-hidden="true"
                 />
               </span>

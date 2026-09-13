@@ -51,6 +51,22 @@ async function startTour(): Promise<void> {
     >
       {{ errorMessage }}
     </p>
-    <TourHost />
+    <TourHost>
+      <template #progress="{ index, total, labels }">
+        <p data-tour-part="progress">
+          {{ labels.progress(index + 1, total) }}
+        </p>
+        <progress
+          class="tour-progress"
+          :value="index + 1"
+          :max="total"
+          :aria-label="labels.progress(index + 1, total)"
+        />
+      </template>
+    </TourHost>
   </div>
 </template>
+
+<style>
+.tour-progress { display: block; width: 100%; height: 0.25rem; margin-block: 0.75rem; accent-color: var(--tour-accent); }
+</style>

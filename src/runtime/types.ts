@@ -19,6 +19,7 @@ export type TourPlacement
     | 'left-end'
 
 export type TourMissingTarget = 'error' | 'skip'
+export type TourMotion = 'auto' | 'none'
 export type TourInteraction = 'modal' | 'target' | 'page'
 
 export type TourRouteValue = string | number | null
@@ -67,7 +68,6 @@ interface TourStepBase {
   readonly route?: TourRoute
   readonly content: string | Component
   readonly placement?: TourPlacement
-  readonly offset?: number
   readonly scroll?: false | Readonly<ScrollIntoViewOptions>
   readonly interaction?: TourInteraction
   readonly when?: (context: TourStepContext) => MaybePromise<boolean>
@@ -79,7 +79,11 @@ type NamedTourStep
   = | { readonly title: string, readonly ariaLabel?: string }
     | { readonly title?: undefined, readonly ariaLabel: string }
 
-export type TourStep = TourStepBase & NamedTourStep
+type TourSpacing
+  = | { readonly gap?: number, readonly offset?: never }
+    | { readonly offset?: number, readonly gap?: never }
+
+export type TourStep = TourStepBase & NamedTourStep & TourSpacing
 export type TourSteps = readonly [TourStep, ...TourStep[]]
 
 export interface TourDefinition<
@@ -148,11 +152,19 @@ export interface TourController<StepId extends string = string> {
 }
 
 export interface TourRuntimeOptions {
+  readonly motion?: TourMotion
   readonly targetTimeout?: number
   readonly missingTarget?: TourMissingTarget
 }
 
+export interface TourStepLabels {
+  readonly title?: string
+  readonly ariaLabel?: string
+}
+
 export interface TourLabels {
+  /** Reactive presentation labels; omit fields to retain the definition values. */
+  step?: (context: { readonly tourId: string, readonly step: TourStep }) => TourStepLabels
   previous: string
   next: string
   finish: string
@@ -163,6 +175,9 @@ export interface TourLabels {
 }
 
 export interface TourCardSlotProps {
+  readonly tourId: string
+  readonly title?: string
+  readonly ariaLabel: string
   readonly step: TourStep
   readonly controller: TourController
   readonly index: number
@@ -170,6 +185,10 @@ export interface TourCardSlotProps {
   readonly titleId?: string
   readonly descriptionId: string
   readonly pending: boolean
+}
+
+export interface TourSectionSlotProps extends TourCardSlotProps {
+  readonly labels: Readonly<TourLabels>
 }
 
 export interface TourPresentation<ResolvedTarget = unknown> {

@@ -1,5 +1,5 @@
 import type { DefineComponent } from 'vue'
-import type { TourCardSlotProps, TourLabels, TourStep } from '../types'
+import type { TourCardSlotProps, TourLabels, TourSectionSlotProps, TourStep } from '../types'
 import { TourContent as TourContentComponent } from './TourContent'
 import TourHostComponent from './TourHost.vue'
 
@@ -9,6 +9,8 @@ type PublicTourHost = DefineComponent<{
   new(): {
     $slots: {
       card?: (props: TourCardSlotProps) => unknown
+      actions?: (props: TourSectionSlotProps) => unknown
+      progress?: (props: TourSectionSlotProps) => unknown
     }
   }
 }
@@ -22,6 +24,7 @@ export { TourError } from '../errors'
 export type { TourErrorCode, TourErrorContext } from '../errors'
 export type {
   TourCardSlotProps,
+  TourSectionSlotProps,
   TourController,
   TourDefinition,
   TourEndReason,
@@ -31,6 +34,8 @@ export type {
   TourInteraction,
   TourId,
   TourLabels,
+  TourStepLabels,
+  TourMotion,
   TourMissingTarget,
   TourPlacement,
   TourRoute,

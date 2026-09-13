@@ -4,7 +4,9 @@ import { TourRuntime } from '../controller'
 import { TourError } from '../errors'
 import type { TourRegistry } from '@lupinum/nuxt-tour/registry'
 import type { TourRouterAdapter } from '../router'
-import { scrollTourTarget } from '../scroll'
+import { createTourScroller, needsTourScroll } from '../scroll'
+import { normalizeTourRuntimeOptions } from '../options'
+import { canTravelBetween } from './spotlight-motion'
 import { TourTargetRegistry } from '../targets'
 import type {
   MaybePromise,
@@ -28,16 +30,19 @@ export type TourScene
       readonly phase: 'covering'
       readonly presentation: TourPresentation<Element> | null
       readonly target: Element | null
+      readonly travel?: boolean
     }
     | {
       readonly phase: 'moving'
       readonly presentation: TourPresentation<Element>
       readonly target: Element | null
+      readonly travel?: boolean
     }
     | {
       readonly phase: 'revealing' | 'active'
       readonly presentation: TourPresentation<Element>
       readonly target: Element | null
+      readonly travel?: boolean
     }
 
 function abortError(): Error {
@@ -50,6 +55,8 @@ function reportError(error: unknown): void {
 }
 
 export class TourVueRuntime {
+  readonly motion: 'auto' | 'none'
+  readonly #scroller = createTourScroller()
   readonly targets = new TourTargetRegistry()
   readonly scene: Readonly<ShallowRef<TourScene>>
   readonly presentation: ComputedRef<TourPresentation<Element> | null>
@@ -67,6 +74,7 @@ export class TourVueRuntime {
     router?: TourRouterAdapter,
     runWithContext?: <Value>(callback: () => MaybePromise<Value>) => MaybePromise<Value>,
   ) {
+    this.motion = normalizeTourRuntimeOptions(options).motion
     const scene = shallowRef<TourScene>({ phase: 'hidden' })
     this.scene = shallowReadonly(scene)
     this.#scene = scene
@@ -91,7 +99,7 @@ export class TourVueRuntime {
       })
     )
 
-    const coverCurrent = async (signal: AbortSignal) => {
+    const coverCurrent = async (signal: AbortSignal, destination?: Element | null) => {
       const current = scene.value
       if (current.phase !== 'active' && current.phase !== 'revealing') {
         await nextTick()
@@ -103,7 +111,8 @@ export class TourVueRuntime {
       scene.value = {
         phase: 'moving',
         presentation: current.presentation,
-        target: current.target,
+        target: destination ?? current.target,
+        travel: Boolean(destination),
       }
       await covered
     }
@@ -134,26 +143,34 @@ export class TourVueRuntime {
       runWithContext,
       navigate: router
         ? async (route, signal) => {
+          this.#scroller.stop()
           await coverCurrent(signal)
           await router.navigate(route, signal)
         }
         : undefined,
       resolveTarget: (target, resolveOptions) => this.targets.wait(target, resolveOptions),
       scroll: async (target, scrollOptions, signal, scrollTarget) => {
+        this.#scroller.stop()
+        if (!needsTourScroll(scrollTarget ?? target, scrollOptions)) return
         await Promise.all([
           coverCurrent(signal).then(() => setTransitionTarget(target)),
-          scrollTourTarget(scrollTarget ?? target, {
+          this.#scroller.scroll(scrollTarget ?? target, {
             ...scrollOptions,
-            behavior: scrollOptions.behavior ?? 'smooth',
+            behavior: this.motion === 'none' ? 'instant' : scrollOptions.behavior ?? 'smooth',
           }, signal),
         ])
       },
       show: async (nextPresentation) => {
-        await coverCurrent(nextPresentation.signal)
+        if (!nextPresentation.target || nextPresentation.step.scroll === false) this.#scroller.stop()
+        const previous = scene.value
+        const travel = this.motion !== 'none' && (previous.phase === 'active' || previous.phase === 'revealing')
+          && canTravelBetween(previous.target, nextPresentation.target)
+        await coverCurrent(nextPresentation.signal, travel ? nextPresentation.target : null)
         scene.value = {
           phase: 'covering',
           presentation: nextPresentation,
           target: nextPresentation.target,
+          travel,
         }
         await new Promise<void>((resolve, reject) => {
           const abort = () => {
@@ -173,9 +190,11 @@ export class TourVueRuntime {
         })
       },
       hide: () => {
+        this.#scroller.stop()
         scene.value = { phase: 'hidden' }
       },
       end: () => {
+        this.#scroller.stop()
         scene.value = { phase: 'hidden' }
         const returnFocus = this.#returnFocus
         this.#returnFocus = null
@@ -209,6 +228,7 @@ export class TourVueRuntime {
   }
 
   dispose(): void {
+    this.#scroller.stop()
     this.#stopRouter?.()
     this.#stopRouter = undefined
     void this.#controller.cancelActive('app-unmounted').catch(reportError)
@@ -246,6 +266,7 @@ export class TourVueRuntime {
       phase: 'revealing',
       presentation: current.presentation,
       target: current.target,
+      travel: current.travel,
     }
   }
 

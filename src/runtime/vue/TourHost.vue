@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { arrow as floatingArrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
+import { arrow as floatingArrow, autoUpdate, flip, offset, shift, size, useFloating } from '@floating-ui/vue'
 import { createFocusTrap } from 'focus-trap'
 import type { FocusTrap } from 'focus-trap'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { isVisibleTarget } from '../targets'
-import type { TourCardSlotProps, TourController, TourLabels } from '../types'
+import type { TourCardSlotProps, TourController, TourLabels, TourSectionSlotProps } from '../types'
 import { TourContent } from './TourContent'
+import { createSpotlightMotion } from './spotlight-motion'
 import { useTourRuntime } from './use-runtime'
 
 const props = defineProps<{
@@ -15,6 +16,8 @@ const props = defineProps<{
 
 defineSlots<{
   card: (props: TourCardSlotProps) => unknown
+  actions: (props: TourSectionSlotProps) => unknown
+  progress: (props: TourSectionSlotProps) => unknown
 }>()
 
 const defaultLabels: TourLabels = {
@@ -35,14 +38,26 @@ const card = shallowRef<HTMLElement | null>(null)
 const reference = shallowRef<Element | null>(null)
 const floating = shallowRef<HTMLElement | null>(null)
 const arrow = shallowRef<SVGSVGElement | null>(null)
-const targetRect = ref<DOMRect | null>(null)
+const targetRect = shallowRef<DOMRect | null>(null)
+const spotlight = shallowRef<HTMLElement | null>(null)
+const travelling = ref(false)
+const slowPending = ref(false)
+const loading = shallowRef<HTMLElement | null>(null)
+let motion: ReturnType<typeof createSpotlightMotion> | undefined
+let motionReady = Promise.resolve()
 const positionReady = ref(false)
+const viewport = shallowRef({ left: 0, top: 0, width: 0, height: 0 })
+function updateViewport(): void {
+  const visual = window.visualViewport
+  viewport.value = { left: visual?.offsetLeft ?? 0, top: visual?.offsetTop ?? 0, width: visual?.width ?? window.innerWidth, height: visual?.height ?? window.innerHeight }
+}
 let focusTrap: FocusTrap | null = null
 
 const scene = computed(() => runtime.scene.value)
 const presentation = computed(() => scene.value.phase === 'hidden' ? null : scene.value.presentation)
 const visualTarget = computed(() => scene.value.phase === 'hidden' ? null : scene.value.target)
 const visualPhase = computed(() => scene.value.phase)
+const travel = computed(() => scene.value.phase !== 'hidden' && Boolean(scene.value.travel))
 const relocating = computed(() => visualPhase.value === 'moving')
 const controller = computed<TourController | null>(() => {
   const current = presentation.value
@@ -51,17 +66,57 @@ const controller = computed<TourController | null>(() => {
 const labels = computed<TourLabels>(() => ({ ...defaultLabels, ...props.labels }))
 const placement = computed(() => presentation.value?.step.placement ?? 'bottom')
 const interaction = computed(() => presentation.value?.step.interaction ?? 'modal')
-const titleId = computed(() => presentation.value?.step.title
+const stepLabels = computed(() => {
+  const current = presentation.value
+  if (!current) return { title: undefined, ariaLabel: undefined }
+  try {
+    const translated = labels.value.step?.({ tourId: current.definition.id, step: current.step })
+    return {
+      title: translated?.title?.trim() ? translated.title : current.step.title,
+      ariaLabel: translated?.ariaLabel?.trim() ? translated.ariaLabel : current.step.ariaLabel,
+    }
+  }
+  catch (error) {
+    reportError(error)
+    return { title: current.step.title, ariaLabel: current.step.ariaLabel }
+  }
+})
+const titleId = computed(() => presentation.value && stepLabels.value.title
   ? `tour-title-${presentation.value.transitionId}`
   : undefined)
 const descriptionId = computed(() => presentation.value
   ? `tour-description-${presentation.value.transitionId}`
   : '')
+const arrowPadding = ref(18)
+const targetClearance = ref(15)
+const defaultOffset = computed(() => targetClearance.value + (presentation.value?.step.gap ?? 12))
+
+function updateArrowMetrics(): void {
+  if (!card.value) return
+  const style = getComputedStyle(card.value)
+  const radius = Math.max(...[
+    style.borderTopLeftRadius, style.borderTopRightRadius,
+    style.borderBottomLeftRadius, style.borderBottomRightRadius,
+  ].map(value => Number.parseFloat(value) || 0))
+  const arrowReach = (arrow.value?.getBoundingClientRect().width ?? 14) / 2
+  const spotlightPadding = spotlight.value ? Number.parseFloat(getComputedStyle(spotlight.value).paddingTop) || 0 : 8
+  arrowPadding.value = radius + arrowReach
+  // Leave breathing room beyond the padded opening and the arrow tip.
+  targetClearance.value = spotlightPadding + arrowReach
+}
+
 const middleware = computed(() => [
-  offset(presentation.value?.step.offset ?? 12),
+  offset(presentation.value?.step.offset ?? defaultOffset.value),
   flip({ padding: 12 }),
-  shift({ padding: 12, crossAxis: true }),
-  floatingArrow({ element: arrow, padding: 18 }),
+  shift({ padding: 12, crossAxis: interaction.value === 'modal' }),
+  size({
+    padding: 12,
+    apply({ availableHeight, availableWidth, elements }) {
+      elements.floating.style.setProperty('--tour-available-height', `${Math.max(0, availableHeight)}px`)
+      elements.floating.style.setProperty('--tour-available-width', `${Math.max(0, availableWidth)}px`)
+    },
+  }),
+  floatingArrow({ element: arrow, padding: arrowPadding.value }),
 ])
 
 function updateTargetRect(target = visualTarget.value): void {
@@ -82,7 +137,10 @@ const { floatingStyles, middlewareData, placement: resolvedPlacement, update } =
   middleware,
   strategy: 'fixed',
   whileElementsMounted(referenceElement, floatingElement, updatePosition) {
-    return autoUpdate(referenceElement, floatingElement, updatePosition)
+    return autoUpdate(referenceElement, floatingElement, () => {
+      updateArrowMetrics()
+      updatePosition()
+    })
   },
 })
 
@@ -90,13 +148,22 @@ const arrowStyle = computed<CSSProperties>(() => {
   const position = middlewareData.value.arrow
   const side = resolvedPlacement.value.split('-')[0]!
   const staticSide = { top: 'bottom', right: 'left', bottom: 'top', left: 'right' }[side]
+  const shifted = middlewareData.value.shift
+  const gap = presentation.value?.step.offset ?? defaultOffset.value
+  const overlapsTarget = side === 'bottom'
+    ? (shifted?.y ?? 0) < -gap
+    : side === 'top'
+      ? (shifted?.y ?? 0) > gap
+      : side === 'right'
+        ? (shifted?.x ?? 0) < -gap
+        : (shifted?.x ?? 0) > gap
   const rotation = { top: '180deg', right: '-90deg', bottom: '0deg', left: '90deg' }[side]
   return {
     left: position?.x === undefined ? undefined : `${position.x}px`,
     top: position?.y === undefined ? undefined : `${position.y}px`,
-    visibility: position?.centerOffset ? 'hidden' : undefined,
+    visibility: position?.centerOffset || overlapsTarget ? 'hidden' : undefined,
     transform: rotation ? `rotate(${rotation})` : undefined,
-    [staticSide ?? 'top']: '-0.4375rem',
+    [staticSide ?? 'top']: 'calc(var(--tour-arrow-size, 0.875rem) / -2)',
   }
 })
 
@@ -106,29 +173,60 @@ const cardStyle = computed<CSSProperties>(() => presentation.value?.target
       visibility: positionReady.value ? undefined : 'hidden',
     }
   : {
-      position: 'fixed',
-      insetInlineStart: '50%',
-      insetBlockStart: '50%',
-      transform: 'translate(-50%, -50%)',
+      'position': 'fixed',
+      'left': `${viewport.value.left + viewport.value.width / 2}px`,
+      'top': `${viewport.value.top + viewport.value.height / 2}px`,
+      '--tour-available-height': `${Math.max(0, viewport.value.height - 32)}px`,
+      '--tour-available-width': `${Math.max(0, viewport.value.width - 32)}px`,
+      'transform': 'translate(-50%, -50%)',
     })
 
-const spotlightStyle = computed<CSSProperties | undefined>(() => {
-  const rect = targetRect.value
-  if (!rect) return undefined
-  const padding = root.value
-    ? Number.parseFloat(getComputedStyle(root.value).getPropertyValue('--tour-spotlight-padding')) || 0
-    : 0
+const slotContext = computed<TourCardSlotProps | undefined>(() => {
+  if (!presentation.value || !controller.value) return
   return {
-    left: '0',
-    top: '0',
-    transform: `translate3d(${rect.left - padding}px, ${rect.top - padding}px, 0)`,
-    width: `${rect.width + padding * 2}px`,
-    height: `${rect.height + padding * 2}px`,
+    tourId: presentation.value.definition.id,
+    title: stepLabels.value.title,
+    ariaLabel: stepLabels.value.ariaLabel ?? stepLabels.value.title ?? '',
+    step: presentation.value.step,
+    controller: controller.value,
+    index: presentation.value.index,
+    total: controller.value.total.value,
+    titleId: titleId.value,
+    descriptionId: descriptionId.value,
+    pending: controller.value.pending.value,
   }
 })
 
+watch(spotlight, (element, _previous, onCleanup) => {
+  motion = element ? createSpotlightMotion(element) : undefined
+  if (motion) onCleanup(() => motion?.dispose())
+}, { flush: 'sync' })
+
+let paintedTarget: Element | null = null
+watch([spotlight, targetRect], ([element, rect]) => {
+  const target = visualTarget.value
+  if (!element || !rect || !motion) return
+  const animate = runtime.motion !== 'none' && travel.value && target !== paintedTarget
+  paintedTarget = target
+  if (animate) travelling.value = true
+  const pending = motion.move(rect, animate)
+  motionReady = pending
+  void pending.then(() => {
+    if (motionReady === pending) travelling.value = false
+  })
+}, { flush: 'post' })
+
+watch(() => controller.value?.pending.value ?? visualPhase.value === 'covering', (pending, _previous, onCleanup) => {
+  slowPending.value = false
+  if (!pending) return
+  const timer = setTimeout(() => {
+    slowPending.value = true
+  }, 400)
+  onCleanup(() => clearTimeout(timer))
+}, { immediate: true })
+
 const blockers = computed<CSSProperties[]>(() => {
-  if (visualPhase.value === 'covering' || visualPhase.value === 'moving') {
+  if (travelling.value || visualPhase.value === 'covering' || visualPhase.value === 'moving') {
     return interaction.value === 'modal' ? [] : [{ inset: '0' }]
   }
   if (interaction.value !== 'target' || !targetRect.value) return []
@@ -142,9 +240,9 @@ const blockers = computed<CSSProperties[]>(() => {
 })
 
 function onKeydown(event: KeyboardEvent): void {
-  if (event.defaultPrevented || event.key !== 'Escape' || !presentation.value || !controller.value) return
+  if (event.defaultPrevented || event.key !== 'Escape' || visualPhase.value === 'hidden') return
   event.preventDefault()
-  void controller.value.cancel('escape')
+  run(() => runtime.cancelActive('escape'))
 }
 
 function deactivateFocusTrap(): void {
@@ -154,14 +252,16 @@ function deactivateFocusTrap(): void {
 
 function activateFocusTrap(): void {
   deactivateFocusTrap()
-  const currentCard = card.value
+  const currentCard = card.value ?? loading.value ?? root.value
   if (!currentCard || interaction.value === 'page') return
   const focusableTarget = reference.value instanceof HTMLElement || reference.value instanceof SVGElement
     ? reference.value
     : null
-  const containers = interaction.value === 'target' && focusableTarget
+  const containers = interaction.value === 'target' && !travelling.value
+    && visualPhase.value !== 'moving' && visualPhase.value !== 'covering' && focusableTarget
     ? [currentCard, focusableTarget]
     : [currentCard]
+  if (loading.value && loading.value !== currentCard) containers.push(loading.value)
   const tabbableOptions = {
     // Include a target that is itself interactive, such as a button or link.
     includeContainer: true,
@@ -170,7 +270,7 @@ function activateFocusTrap(): void {
   focusTrap = createFocusTrap(containers, {
     escapeDeactivates: false,
     fallbackFocus: currentCard,
-    initialFocus: () => root.value?.querySelector<HTMLElement>('[data-tour-part="title"]') ?? currentCard,
+    initialFocus: () => loading.value ?? root.value?.querySelector<HTMLElement>('[data-tour-part="title"]') ?? currentCard,
     isolateSubtrees: 'inert',
     delayInitialFocus: false,
     preventScroll: true,
@@ -180,16 +280,30 @@ function activateFocusTrap(): void {
   focusTrap.activate()
 }
 
+function reportError(error: unknown): void {
+  if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
+  else console.error('[nuxt-tour] A tour action or label failed.', error)
+}
+
 function run(command: (() => Promise<void>) | undefined): void {
-  void command?.().catch((error) => {
-    if (typeof globalThis.reportError === 'function') globalThis.reportError(error)
-    else console.error('[nuxt-tour] A tour action failed.', error)
-  })
+  void command?.().catch(reportError)
 }
 
 async function waitForAnimationFrames(count: number): Promise<void> {
-  for (let frame = 0; frame < count; frame += 1) {
-    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  for (let index = 0; index < count; index += 1) {
+    if (document.hidden) return
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        cancelAnimationFrame(frame)
+        document.removeEventListener('visibilitychange', onVisibility)
+        resolve()
+      }
+      const onVisibility = () => {
+        if (document.hidden) finish()
+      }
+      const frame = requestAnimationFrame(finish)
+      document.addEventListener('visibilitychange', onVisibility)
+    })
   }
 }
 
@@ -204,35 +318,58 @@ watch(
       targetRect.value = null
       return
     }
+    updateTargetRect(target)
     await nextTick()
     if (visualTarget.value !== target) return
-    updateTargetRect(target)
     if (root.value) onCleanup(autoUpdate(target, root.value, () => updateTargetRect(target)))
   },
-  { flush: 'post' },
+  { flush: 'sync' },
 )
 
-async function waitForCoverAnimations(): Promise<void> {
+async function waitForCoverAnimations(signal: AbortSignal): Promise<void> {
+  if (runtime.motion === 'none') return
   await nextTick()
   const elements = [floating.value, root.value?.querySelector<HTMLElement>('[data-tour-part="spotlight"]')]
     .filter((element): element is HTMLElement => element !== null && element !== undefined)
     .filter(element => typeof element.getAnimations === 'function')
   if (elements.length === 0) return
-  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+  await waitForAnimationFrames(1)
   const animations = elements
     .flatMap(element => element.getAnimations())
-    // Consumer styling must not be able to deadlock a tour with an unrelated
-    // infinite animation on one of the host elements.
-    .filter(animation => Number.isFinite(Number(animation.effect?.getComputedTiming().endTime)))
-  await Promise.allSettled(animations.map(animation => animation.finished))
+    // Only opacity handoffs belong to this handshake. Ignore unrelated CSS
+    // animations, including finite paused effects supplied by the application.
+    .filter(animation => 'transitionProperty' in animation && animation.transitionProperty === 'opacity' && animation.playState === 'running')
+  const finishHidden = () => {
+    if (document.hidden) for (const animation of animations) animation.finish()
+  }
+  document.addEventListener('visibilitychange', finishHidden)
+  try {
+    finishHidden()
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', finish)
+        resolve()
+      }
+      // Theme overrides must not extend navigation indefinitely. The built-in
+      // closing transitions finish within 80 ms; allow one extra frame.
+      const timer = setTimeout(finish, 120)
+      signal.addEventListener('abort', finish, { once: true })
+      if (signal.aborted) finish()
+      else void Promise.allSettled(animations.map(animation => animation.finished)).then(finish)
+    })
+  }
+  finally { document.removeEventListener('visibilitychange', finishHidden) }
 }
 
 watch(
   scene,
-  async (current) => {
+  async (current, _previous, onCleanup) => {
     if (current.phase !== 'moving') return
     const transitionId = current.presentation.transitionId
-    await waitForCoverAnimations()
+    const wait = new AbortController()
+    onCleanup(() => wait.abort())
+    await waitForCoverAnimations(wait.signal)
     const latest = scene.value
     if (latest.phase === 'moving' && latest.presentation.transitionId === transitionId) {
       runtime.covered(transitionId)
@@ -285,10 +422,12 @@ watch(
       // A Vue DOM flush does not guarantee that the browser painted the
       // covered spotlight and hidden card. Keep that starting state for one
       // real frame so the following CSS transitions cannot be skipped.
-      await waitForAnimationFrames(2)
+      await waitForAnimationFrames(runtime.motion === 'none' ? 0 : current.target ? 1 : 2)
       if (presentation.value?.transitionId !== current.transitionId) return
       runtime.reveal(current.transitionId)
       await nextTick()
+      if (presentation.value?.transitionId !== current.transitionId) return
+      await motionReady
       if (presentation.value?.transitionId !== current.transitionId) return
       activateFocusTrap()
       if (interaction.value === 'page') {
@@ -306,14 +445,29 @@ watch(
   { flush: 'sync' },
 )
 
+watch([root, loading], () => {
+  if (visualPhase.value !== 'hidden') activateFocusTrap()
+}, { flush: 'post' })
+watch(visualPhase, (phase) => {
+  if (phase === 'hidden') deactivateFocusTrap()
+  else if (phase === 'moving') activateFocusTrap()
+}, { flush: 'sync' })
+
 let unregisterHost: (() => void) | undefined
 onMounted(() => {
+  updateViewport()
+  window.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('resize', updateViewport)
+  window.visualViewport?.addEventListener('scroll', updateViewport)
   mounted.value = true
   unregisterHost = runtime.registerHost()
   document.addEventListener('keydown', onKeydown)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('resize', updateViewport)
+  window.visualViewport?.removeEventListener('scroll', updateViewport)
   document.removeEventListener('keydown', onKeydown)
   unregisterHost?.()
   deactivateFocusTrap()
@@ -328,10 +482,16 @@ onBeforeUnmount(() => {
     <div
       ref="root"
       data-tour-part="root"
+      :data-motion="runtime.motion"
+      tabindex="-1"
+      :role="!presentation ? 'dialog' : undefined"
+      :aria-modal="!presentation ? 'true' : undefined"
+      :aria-label="!presentation ? labels.pending : undefined"
       :data-tour-id="presentation?.definition.id"
       :data-tour-step-id="presentation?.step.id"
       :data-visual-phase="visualPhase"
       :data-relocating="relocating ? '' : undefined"
+      :data-travel="travel ? '' : undefined"
     >
       <div
         data-tour-part="overlay"
@@ -341,14 +501,15 @@ onBeforeUnmount(() => {
 
       <div
         v-if="visualTarget && targetRect"
+        ref="spotlight"
         data-tour-part="spotlight"
-        :style="spotlightStyle"
         aria-hidden="true"
       />
 
       <div
         v-if="interaction === 'modal'"
         data-tour-part="blocker"
+        style="inset: 0"
         aria-hidden="true"
       />
       <div
@@ -360,101 +521,128 @@ onBeforeUnmount(() => {
       />
 
       <div
-        v-if="presentation && controller"
+        v-if="slowPending"
+        ref="loading"
+        data-tour-part="loading"
+        :aria-label="labels.pending"
+        tabindex="-1"
+      >
+        <span role="status">{{ labels.pending }}</span>
+        <button
+          type="button"
+          @click="run(() => runtime.cancelActive('close-button'))"
+        >
+          {{ labels.close }}
+        </button>
+      </div>
+
+      <div
+        v-if="presentation && controller && slotContext"
         ref="floating"
         data-tour-part="positioner"
         :data-placement="presentation.target ? resolvedPlacement : undefined"
         :data-positioned="!presentation.target || positionReady ? '' : undefined"
         :style="cardStyle"
       >
-        <section
-          ref="card"
-          data-tour-part="card"
-          role="dialog"
-          :aria-modal="interaction === 'modal' ? 'true' : undefined"
-          :aria-label="presentation.step.ariaLabel ?? presentation.step.title"
-          :aria-describedby="descriptionId"
-          :aria-busy="controller.pending.value ? 'true' : undefined"
-          tabindex="-1"
-        >
-          <slot
-            name="card"
-            :step="presentation.step"
-            :controller="controller"
-            :index="presentation.index"
-            :total="controller.total.value"
-            :title-id="titleId"
-            :description-id="descriptionId"
-            :pending="controller.pending.value"
+        <div data-tour-part="surface">
+          <section
+            ref="card"
+            data-tour-part="card"
+            role="dialog"
+            :aria-modal="interaction === 'modal' ? 'true' : undefined"
+            :aria-label="slotContext.ariaLabel"
+            :aria-describedby="descriptionId"
+            :aria-busy="controller.pending.value ? 'true' : undefined"
+            tabindex="-1"
           >
-            <button
-              type="button"
-              data-tour-part="close"
-              :aria-label="labels.close"
-              @click="closeTour"
+            <slot
+              name="card"
+              v-bind="slotContext"
             >
-              <span aria-hidden="true">×</span>
-            </button>
+              <button
+                type="button"
+                data-tour-part="close"
+                :aria-label="labels.close"
+                @click="closeTour"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
 
-            <p data-tour-part="progress">
-              {{ labels.progress(presentation.index + 1, controller.total.value) }}
-            </p>
-            <span
-              v-if="controller.pending.value"
-              data-tour-part="pending"
-              role="status"
-            >
-              {{ labels.pending }}
-            </span>
-            <h2
-              v-if="presentation.step.title"
-              :id="titleId"
-              data-tour-part="title"
-              tabindex="-1"
-            >
-              {{ presentation.step.title }}
-            </h2>
-            <div :id="descriptionId">
-              <TourContent :step="presentation.step" />
-            </div>
+              <slot
+                name="progress"
+                v-bind="slotContext"
+                :labels="labels"
+              >
+                <p data-tour-part="progress">
+                  {{ labels.progress(presentation.index + 1, controller.total.value) }}
+                </p>
+              </slot>
+              <span
+                v-if="controller.pending.value"
+                data-tour-part="pending"
+                role="status"
+              >
+                {{ labels.pending }}
+              </span>
+              <h2
+                v-if="stepLabels.title"
+                :id="titleId"
+                data-tour-part="title"
+                tabindex="-1"
+              >
+                {{ stepLabels.title }}
+              </h2>
+              <div :id="descriptionId">
+                <TourContent :step="presentation.step" />
+              </div>
 
-            <div data-tour-part="actions">
-              <button
-                v-if="presentation.index > 0"
-                type="button"
-                :disabled="controller.pending.value"
-                @click="run(controller.previous)"
-              >
-                {{ labels.previous }}
-              </button>
-              <button
-                type="button"
-                :disabled="controller.pending.value"
-                @click="run(controller.skip)"
-              >
-                {{ labels.skip }}
-              </button>
-              <button
-                type="button"
-                :disabled="controller.pending.value"
-                @click="run(controller.next)"
-              >
-                {{ presentation.index === controller.total.value - 1 ? labels.finish : labels.next }}
-              </button>
-            </div>
-          </slot>
-        </section>
-        <svg
-          v-if="presentation.target && positionReady"
-          ref="arrow"
-          data-tour-part="arrow"
-          :style="arrowStyle"
-          viewBox="0 0 14 14"
-          focusable="false"
-          aria-hidden="true"
-        >
-          <path d="M1 8.5 6.15 2.35Q7 1.4 7.85 2.35L13 8.5Z" />
-        </svg>
+              <div data-tour-part="actions">
+                <slot
+                  name="actions"
+                  v-bind="slotContext"
+                  :labels="labels"
+                >
+                  <button
+                    v-if="presentation.index > 0"
+                    data-tour-action="previous"
+                    type="button"
+                    :disabled="controller.pending.value"
+                    @click="run(controller.previous)"
+                  >
+                    {{ labels.previous }}
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="controller.pending.value"
+                    data-tour-action="skip"
+                    @click="run(controller.skip)"
+                  >
+                    {{ labels.skip }}
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="controller.pending.value"
+                    data-tour-action="next"
+                    @click="run(controller.next)"
+                  >
+                    {{ presentation.index === controller.total.value - 1 ? labels.finish : labels.next }}
+                  </button>
+                </slot>
+              </div>
+            </slot>
+          </section>
+          <svg
+            v-if="presentation.target && positionReady"
+            ref="arrow"
+            data-tour-part="arrow"
+            :style="arrowStyle"
+            viewBox="0 0 14 14"
+            focusable="false"
+            aria-hidden="true"
+          >
+            <path d="M0 8Q3 8 5.7 3.2Q7 1 8.3 3.2Q11 8 14 8" />
+          </svg>
+        </div>
       </div>
     </div>
   </Teleport>
