@@ -39,13 +39,19 @@ function abortError(): Error {
   return new DOMException('The tour transition was aborted.', 'AbortError')
 }
 
+function parentElementAcrossShadowRoot(element: Element): Element | null {
+  const parent = element.parentNode
+  const view = element.ownerDocument.defaultView
+  return view && parent instanceof view.ShadowRoot ? parent.host : element.parentElement
+}
+
 export function usesSmoothScroll(target: Element, behavior: ScrollBehavior | undefined): boolean {
   if (behavior === 'smooth') return true
   if (behavior !== undefined && behavior !== 'auto') return false
 
   const view = target.ownerDocument.defaultView
   if (!view) return false
-  for (let element = target.parentElement; element; element = element.parentElement) {
+  for (let element = parentElementAcrossShadowRoot(target); element; element = parentElementAcrossShadowRoot(element)) {
     if (view.getComputedStyle(element).scrollBehavior === 'smooth') return true
   }
   return false
@@ -231,7 +237,7 @@ function scrollContainers(target: Element): Element[] {
   const document = target.ownerDocument
   const view = document.defaultView!
   const result: Element[] = []
-  for (let element = target.parentElement; element; element = element.parentElement) {
+  for (let element = parentElementAcrossShadowRoot(target); element; element = parentElementAcrossShadowRoot(element)) {
     const style = view.getComputedStyle(element)
     if (element !== document.scrollingElement && /auto|scroll|hidden/u.test(`${style.overflowX} ${style.overflowY}`)) result.push(element)
   }

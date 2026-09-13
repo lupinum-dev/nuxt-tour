@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it, vi } from 'vitest'
-import { sampleScrollReveal, createTourScroller, needsTourScroll } from '../src/runtime/scroll'
+import { sampleScrollReveal, createTourScroller, needsTourScroll, usesSmoothScroll } from '../src/runtime/scroll'
 
 const scrollTourTarget = (...args: Parameters<ReturnType<typeof createTourScroller>['scroll']>) => createTourScroller().scroll(...args)
 
@@ -286,5 +286,25 @@ describe('native scroll ownership and alignment', () => {
     parent.scrollLeft = -100
     expect(needsTourScroll(target, { block: 'center', inline: 'start' })).toBe(true)
     parent.remove()
+  })
+
+  it('includes a shadow host and its ancestors in scroll decisions', () => {
+    const host = document.createElement('div')
+    host.style.overflowY = 'auto'
+    host.style.scrollBehavior = 'smooth'
+    const target = document.createElement('button')
+    host.attachShadow({ mode: 'open' }).append(target)
+    document.body.append(host)
+    Object.defineProperties(host, {
+      clientWidth: { value: 100 }, clientHeight: { value: 100 },
+      scrollWidth: { value: 100 }, scrollHeight: { value: 300 },
+      getBoundingClientRect: { value: () => new DOMRect(0, 0, 100, 100) },
+    })
+    Object.defineProperty(target, 'getBoundingClientRect', { value: () => new DOMRect(0, 150, 40, 40) })
+
+    expect(target.parentElement).toBeNull()
+    expect(usesSmoothScroll(target, 'auto')).toBe(true)
+    expect(needsTourScroll(target, { block: 'nearest' })).toBe(true)
+    host.remove()
   })
 })
