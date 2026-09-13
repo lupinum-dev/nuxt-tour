@@ -25,6 +25,9 @@ const basicTour = defineTour({
 })
 
 describe('tour definitions', () => {
+  it('accepts native instant scrolling and explicit clear spacing', () => {
+    expect(() => defineTour({ id: 'instant', steps: [{ id: 'one', title: 'One', content: 'One', gap: 16, scroll: { behavior: 'instant' } }] })).not.toThrow()
+  })
   it('preserves tour and step literal types', () => {
     expectTypeOf(basicTour.id).toEqualTypeOf<'onboarding'>()
     expectTypeOf<(typeof basicTour.steps)[number]['id']>().toEqualTypeOf<'welcome' | 'projects'>()
@@ -78,6 +81,9 @@ describe('tour definitions', () => {
     { route: { path: '/projects', query: [] } },
     { route: { path: '/projects', query: { page: Number.NaN } } },
     { route: { path: '/projects', query: { filter: { nested: true } } } },
+    { gap: -1 },
+    { gap: Number.NaN },
+    { gap: 12, offset: 20 },
     { scroll: null },
     { scroll: [] },
     { scroll: { behavior: 'slow' } },
@@ -92,6 +98,11 @@ describe('tour definitions', () => {
 })
 
 describe('tour controller', () => {
+  it('validates the shared motion policy', () => {
+    expect(() => new TourRuntime([basicTour], adapter(), { motion: 'none' })).not.toThrow()
+    // @ts-expect-error JavaScript consumers must also reject unknown policies.
+    expect(() => new TourRuntime([basicTour], adapter(), { motion: 'disabled' })).toThrowError(expect.objectContaining({ code: 'INVALID_DEFINITION' }))
+  })
   it('rejects a different definition object with an installed ID', () => {
     const runtime = new TourRuntime([basicTour], adapter())
     const clone = defineTour({

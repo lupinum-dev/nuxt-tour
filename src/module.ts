@@ -13,13 +13,14 @@ import {
 import { isAbsolute, normalize, resolve } from 'pathe'
 import { layeredTourSources, registryTypesTemplate, runtimeRegistryTemplate } from './discovery'
 import { defaultTourRuntimeOptions, normalizeTourRuntimeOptions } from './runtime/options'
-import type { TourMissingTarget } from './runtime/types'
+import type { TourMissingTarget, TourMotion } from './runtime/types'
 
 export { TourError } from './runtime/errors'
 export type { TourErrorCode, TourErrorContext } from './runtime/errors'
 
 export type {
   TourCardSlotProps,
+  TourSectionSlotProps,
   TourController,
   TourDefinition,
   TourEndReason,
@@ -28,6 +29,8 @@ export type {
   TourEventType,
   TourInteraction,
   TourLabels,
+  TourStepLabels,
+  TourMotion,
   TourMissingTarget,
   TourPlacement,
   TourRoute,
@@ -41,6 +44,8 @@ export type {
 } from './runtime/types'
 
 export interface ModuleOptions {
+  /** Tour motion policy. Auto respects reduced motion. @default 'auto' */
+  motion?: TourMotion
   /** How long a step waits for a late-rendered target. @default 5000 */
   targetTimeout?: number
   /** What to do when a target cannot be found. @default 'error' */
@@ -59,6 +64,7 @@ export default defineNuxtModule<ModuleOptions>({
     },
   },
   defaults: {
+    motion: defaultTourRuntimeOptions.motion,
     targetTimeout: defaultTourRuntimeOptions.targetTimeout,
     missingTarget: defaultTourRuntimeOptions.missingTarget,
     css: 'all',

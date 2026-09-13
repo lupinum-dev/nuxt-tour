@@ -87,7 +87,8 @@
     "test:types": "nuxt typecheck test/fixtures/basic && nuxt typecheck test/fixtures/layers/project",
     "typecheck": "vue-tsc --noEmit && pnpm --dir playground typecheck && pnpm docs:typecheck",
     "verify": "pnpm verify:core && pnpm test:browser",
-    "verify:core": "pnpm check:dependencies && pnpm test:dependencies && pnpm audit:all && pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm docs:build"
+    "verify:core": "pnpm check:dependencies && pnpm test:dependencies && pnpm audit:all && pnpm dev:prepare && pnpm lint && pnpm typecheck && pnpm test:types && pnpm test && pnpm build && pnpm test:bundle && pnpm docs:build",
+    "test:bundle": "node scripts/measure-bundle.mjs --check"
   },
   "dependencies": {
     "@floating-ui/vue": "^2.0.1",

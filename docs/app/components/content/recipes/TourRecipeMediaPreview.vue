@@ -4,14 +4,14 @@
     class="media-preview"
   >
     <img
-      src="/recipes/habitat-overview.svg"
+      src="/recipes/project-overview.svg"
       width="640"
       height="360"
-      alt="Habitat restoration dashboard preview"
+      alt="Nuxt project dashboard preview"
     >
     <div>
-      <strong>Wetland restoration</strong>
-      <span>68% complete · 3 active areas</span>
+      <strong>Nuxt starter</strong>
+      <span>68% complete · 3 active tasks</span>
     </div>
   </article>
 </template>
