@@ -6,6 +6,9 @@
 
 ### 🩹 Fixes
 
+- **tour:** Release target isolation only after the latest overlay movement finishes, including geometry updates during travel ([9f80ede](https://github.com/lupinum-dev/nuxt-tour/commit/9f80ede)).
+- **vue:** Share the app-scoped runtime injection key across Vite's optimized entry and external Vue components; certify cold dev startup and reload ([73cf57a](https://github.com/lupinum-dev/nuxt-tour/commit/73cf57a)).
+
 - **docs:** Include executable tour demos in packaged guidance ([632896f](https://github.com/lupinum-dev/nuxt-tour/commit/632896f))
 
 ### ❤️ Contributors
