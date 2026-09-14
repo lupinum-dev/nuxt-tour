@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { markRaw, useId } from 'vue'
+import mediaCode from '../../tours/recipe-media.ts?raw'
+import interactionCode from '../../tours/recipe-interaction.ts?raw'
+import programmaticCode from './recipes/TourRecipeProgrammaticPreview.vue?raw'
+import centeredCode from '../../tours/recipe-centered.ts?raw'
 import TourRecipeCenteredPreview from './recipes/TourRecipeCenteredPreview.vue'
 import TourRecipeInteractionPreview from './recipes/TourRecipeInteractionPreview.vue'
 import TourRecipeMediaPreview from './recipes/TourRecipeMediaPreview.vue'
@@ -7,7 +11,6 @@ import TourRecipeProgrammaticPreview from './recipes/TourRecipeProgrammaticPrevi
 
 const copied = ref(false)
 const errorMessage = ref('')
-const closingScriptTag = '</' + 'script>'
 const runtimeConfig = useRuntimeConfig()
 const regionId = useId()
 
@@ -19,17 +22,7 @@ const recipes = {
     icon: 'lucide:image',
     description: 'Render an image, video, or live Vue component inside the default card.',
     language: 'ts',
-    code: `import ProjectOverview from '~/components/tours/ProjectOverview.vue'
-
-export default defineTour({
-  id: 'onboarding',
-  steps: [{
-    id: 'overview',
-    target: 'project-overview',
-    title: 'Your project overview',
-    content: ProjectOverview,
-  }],
-})`,
+    code: mediaCode,
   },
   interaction: {
     controller: useNuxtTour('recipe-interaction'),
@@ -38,13 +31,7 @@ export default defineTour({
     icon: 'lucide:mouse-pointer-click',
     description: 'Keep the highlighted control usable while the rest of the page stays protected.',
     language: 'ts',
-    code: `{
-  id: 'filters',
-  target: 'project-filters',
-  title: 'Narrow the list',
-  content: 'Try the filters now.',
-  interaction: 'target',
-}`,
+    code: interactionCode,
   },
   programmatic: {
     controller: useNuxtTour('recipe-programmatic'),
@@ -53,14 +40,7 @@ export default defineTour({
     icon: 'lucide:component',
     description: 'Register a semantic target from a component ref when a directive does not fit.',
     language: 'vue',
-    code: `<script setup lang="ts">
-const createButton = useTemplateRef('createButton')
-useTourTarget('create-project', createButton)
-${closingScriptTag}
-
-<template>
-  <AppButton ref="createButton">Create project</AppButton>
-</template>`,
+    code: programmaticCode,
   },
   centered: {
     controller: useNuxtTour('recipe-centered'),
@@ -69,11 +49,7 @@ ${closingScriptTag}
     icon: 'lucide:party-popper',
     description: 'Omit the target for a deliberate welcome, checkpoint, or completion step.',
     language: 'ts',
-    code: `{
-  id: 'complete',
-  ariaLabel: 'Setup complete',
-  content: CompletionMessage,
-}`,
+    code: centeredCode,
   },
 } as const
 
