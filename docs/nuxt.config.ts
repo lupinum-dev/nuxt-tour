@@ -1,3 +1,4 @@
+import { demoSourceModule } from './demo-sources'
 import nuxtTour from '../src/module'
 
 export default defineNuxtConfig({
@@ -25,6 +26,7 @@ export default defineNuxtConfig({
     },
   },
   compatibilityDate: '2026-08-29',
+  nitro: { virtual: { '#demo-sources': demoSourceModule } },
   ginkoDocs: {
     syntaxHighlighting: {
       themes: {

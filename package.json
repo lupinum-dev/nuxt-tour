@@ -1,6 +1,6 @@
 {
   "name": "@lupinum/nuxt-tour",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Build accessible, route-aware product tours with a Vue-native API and Nuxt-first developer experience.",
   "type": "module",
   "license": "MIT",
@@ -68,7 +68,7 @@
     "dev": "pnpm dev:prepare && nuxt dev playground",
     "dev:build": "pnpm dev:prepare && nuxt build playground",
     "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
-    "docs:build": "pnpm docs:theme && pnpm build && pnpm --dir docs build && pnpm docs:package",
+    "docs:build": "pnpm docs:theme && pnpm build && pnpm --dir docs build && node scripts/check-demo-markdown.mjs && pnpm docs:package",
     "docs:onboarding": "node scripts/sync-consumer-onboarding.mjs --write",
     "docs:package": "node scripts/build-agent-docs.mjs",
     "docs:theme": "node scripts/check-docs-theme.mjs",

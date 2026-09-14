@@ -427,8 +427,14 @@ watch(
       runtime.reveal(current.transitionId)
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
-      await motionReady
-      if (presentation.value?.transitionId !== current.transitionId) return
+      // Geometry observers can replace the movement promise while we await it.
+      // Only the latest completion releases target isolation for this transition.
+      while (true) {
+        const pendingMotion = motionReady
+        await pendingMotion
+        if (presentation.value?.transitionId !== current.transitionId) return
+        if (pendingMotion === motionReady) break
+      }
       activateFocusTrap()
       if (interaction.value === 'page') {
         const title = root.value?.querySelector<HTMLElement>('[data-tour-part="title"]')
