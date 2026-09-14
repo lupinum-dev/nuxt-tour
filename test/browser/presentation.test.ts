@@ -18,6 +18,8 @@ test('moves one opening continuously and gates target access until aligned', asy
     state.motionSamples = samples
     const started = performance.now()
     const sample = () => {
+      // Layout observers may republish the same destination during travel.
+      window.dispatchEvent(new Event('resize'))
       const element = document.querySelector('[data-tour-part="spotlight"]')!
       const rect = element.getBoundingClientRect()
       const target = document.querySelector('[data-tour-target="motion-second"]')!
@@ -39,6 +41,7 @@ test('moves one opening continuously and gates target access until aligned', asy
   const opening = await page.locator('[data-tour-part="spotlight"]').boundingBox()
   const target = await page.locator('[data-tour-target="motion-second"]').boundingBox()
   expect(Math.abs(opening!.x - (target!.x - 8))).toBeLessThan(1)
+  expect(await page.locator('[data-tour-target="motion-second"]').evaluate(element => element.closest('[inert]') === null)).toBe(true)
   await page.locator('[data-tour-target="motion-second"]').click()
   await expect(page.locator('output')).toHaveText('1')
   await page.keyboard.press('Escape')
