@@ -25,7 +25,8 @@ const packageJson = JSON.parse(await readFile('package.json', 'utf8'))
 const tarball = resolve(artifactsDirectory, pkg.filename)
 const frameworkVersion = readArgument('--framework-version') ?? packageJson.devDependencies[framework]
 if (!frameworkVersion) throw new Error(`No version was provided for ${framework}.`)
-const consumer = await mkdtemp(join(tmpdir(), 'lupinum-packed-consumer-'))
+// Resolve Windows short temp paths before Vite compares its root with real files.
+const consumer = await realpath(await mkdtemp(join(tmpdir(), 'lupinum-packed-consumer-')))
 
 try {
   await mkdir(join(consumer, 'src'), { recursive: true })
@@ -164,7 +165,7 @@ async function verifyJourney(development = false) {
       const response = visit === 0
         ? await page.goto(url, { waitUntil: 'networkidle' })
         : await page.reload({ waitUntil: 'networkidle' })
-      expect(response?.status()).toBe(200)
+      expect(response?.status(), `${development ? 'Development' : 'Production'} consumer response: ${response?.status() === 200 ? 'OK' : await response?.text()}`).toBe(200)
       const start = page.getByRole('button', { name: 'Start tour', exact: true })
       await expect(start).toBeVisible()
       await start.click()
