@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.2.0...v0.2.1)
+
+### 🩹 Fixes
+
+- **docs:** Include executable tour demos in packaged guidance ([632896f](https://github.com/lupinum-dev/nuxt-tour/commit/632896f))
+
+### ❤️ Contributors
+
+- Mat4m0 <matthias@lupinum.com>
+
 ## v0.2.0
 
 [compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.1.3...v0.2.0)
