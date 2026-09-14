@@ -150,7 +150,10 @@ async function verifyJourney(development = false) {
     const page = await browser.newPage({ reducedMotion: 'reduce' })
     const errors = []
     page.on('console', (message) => {
-      if (message.type() === 'error') console.error(message.text())
+      if (message.type() === 'error' || (message.type() === 'warning' && message.text().includes('[Vue warn]'))) {
+        errors.push(message.text())
+        console.error(message.text())
+      }
     })
     page.on('pageerror', (error) => {
       errors.push(error.message)
@@ -167,6 +170,7 @@ async function verifyJourney(development = false) {
       await start.click()
       const dialog = page.getByRole('dialog', { name: 'Welcome', exact: true })
       await expect(dialog).toBeVisible()
+      await expect(dialog.locator('[data-tour-part="content"]')).toHaveText(framework === 'vue' ? 'Packed Vue consumer tour' : 'Packed consumer tour')
       await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-motion', 'none')
       await expect(page.getByTestId('step')).toHaveText('welcome')
       await expect(page.locator('[data-tour-target="welcome"]')).toBeVisible()
