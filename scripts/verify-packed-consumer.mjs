@@ -80,6 +80,7 @@ try {
     : [['vue-tsc', '--noEmit'], ['vite', 'build']]
   for (const command of commands) runPnpm(['exec', ...command], `Packed consumer ${command.join(' ')} failed.`)
   await verifyJourney()
+  if (framework === 'vue') await verifyJourney(true)
   console.log(`Verified mounted ${framework}@${installed.version} consumer of ${pkg.name}@${pkg.version}.`)
 }
 finally {
@@ -104,7 +105,7 @@ function run(command, args, fallbackMessage) {
   if (result.status !== 0) throw new Error([result.stdout, result.stderr, result.error?.message].filter(Boolean).join('\n').trim() || fallbackMessage)
 }
 
-async function verifyJourney() {
+async function verifyJourney(development = false) {
   // Older Nitro treats port 0 as its default, so choose a free port explicitly.
   const probe = createServer().listen(0, '127.0.0.1')
   await once(probe, 'listening')
@@ -115,7 +116,7 @@ async function verifyJourney() {
   const port = String(address.port)
   const serverArgs = framework === 'nuxt'
     ? ['.output/server/index.mjs']
-    : [join(consumer, 'node_modules', 'vite', 'bin', 'vite.js'), 'preview', '--host', '127.0.0.1', '--port', port, '--outDir', join(consumer, 'dist')]
+    : [join(consumer, 'node_modules', 'vite', 'bin', 'vite.js'), ...(development ? [] : ['preview']), '--host', '127.0.0.1', '--port', port, '--strictPort', ...(development ? [] : ['--outDir', join(consumer, 'dist')])]
   const server = spawn(process.execPath, serverArgs, {
     cwd: consumer,
     env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: port },
@@ -155,20 +156,25 @@ async function verifyJourney() {
       errors.push(error.message)
       console.error(error)
     })
-    const response = await page.goto(url, { waitUntil: 'networkidle' })
-    expect(response?.status()).toBe(200)
-    const start = page.getByRole('button', { name: 'Start tour', exact: true })
-    await expect(start).toBeVisible()
-    await start.click()
-    const dialog = page.getByRole('dialog', { name: 'Welcome', exact: true })
-    await expect(dialog).toBeVisible()
-    await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-motion', 'none')
-    await expect(page.getByTestId('step')).toHaveText('welcome')
-    await expect(page.locator('[data-tour-target="welcome"]')).toBeVisible()
-    await dialog.getByRole('button', { name: 'Finish', exact: true }).click()
-    await expect(dialog).toBeHidden()
-    await expect(page.getByRole('status')).toHaveText('completed')
-    await expect(start).toBeFocused()
+    // A cold Vite optimizer and a reload must share the plugin/SFC injection key.
+    for (let visit = 0; visit < (development ? 2 : 1); visit++) {
+      const response = visit === 0
+        ? await page.goto(url, { waitUntil: 'networkidle' })
+        : await page.reload({ waitUntil: 'networkidle' })
+      expect(response?.status()).toBe(200)
+      const start = page.getByRole('button', { name: 'Start tour', exact: true })
+      await expect(start).toBeVisible()
+      await start.click()
+      const dialog = page.getByRole('dialog', { name: 'Welcome', exact: true })
+      await expect(dialog).toBeVisible()
+      await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-motion', 'none')
+      await expect(page.getByTestId('step')).toHaveText('welcome')
+      await expect(page.locator('[data-tour-target="welcome"]')).toBeVisible()
+      await dialog.getByRole('button', { name: 'Finish', exact: true }).click()
+      await expect(dialog).toBeHidden()
+      await expect(page.getByRole('status')).toHaveText('completed')
+      await expect(start).toBeFocused()
+    }
     expect(errors).toEqual([])
   }
   finally {
