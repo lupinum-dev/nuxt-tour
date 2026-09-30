@@ -41,7 +41,7 @@ export default defineTour({
       target: 'demo-recipes',
       title: 'Long moves adapt to distance',
       content: 'The browser handles the long journey. The spotlight starts to open only when this target is close and moving slowly.',
-      placement: 'top-start',
+      placement: 'bottom-start',
     },
   ],
 })

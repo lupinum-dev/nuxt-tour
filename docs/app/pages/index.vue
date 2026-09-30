@@ -159,12 +159,12 @@ async function copyInstall(): Promise<void> {
       <TourDemo />
     </section>
 
-    <section
-      v-tour-target="'demo-recipes'"
-      class="border-t border-border"
-    >
+    <section class="border-t border-border">
       <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-        <div class="min-w-0">
+        <div
+          v-tour-target="'demo-recipes'"
+          class="min-w-0"
+        >
           <h2 class="max-w-xl text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-foreground sm:text-4xl">
             From first tour to product-ready patterns.
           </h2>
