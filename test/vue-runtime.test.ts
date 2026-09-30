@@ -126,12 +126,16 @@ describe('Vue runtime', () => {
     expect(arrow).toBeInstanceOf(SVGSVGElement)
     expect(arrow?.getAttribute('viewBox')).toBe('0 0 14 14')
     expect(arrow?.getAttribute('aria-hidden')).toBe('true')
+    const actions = () => [...document.querySelectorAll('[data-tour-action]')].map(button => button.getAttribute('data-tour-action'))
+    expect(actions()).toEqual(['skip', 'next'])
 
     document.querySelector<HTMLButtonElement>('[data-tour-part="actions"] button:last-child')?.click()
     await vi.waitFor(() => {
       expect(document.querySelector('[data-tour-part="root"]')?.getAttribute('data-tour-step-id')).toBe('two')
       expect(installation.runtime.scene.value.phase).toBe('active')
     })
+    // Finish and the close control end the final step; Skip would repeat them.
+    expect(actions()).toEqual(['previous', 'next'])
 
     expect(document.querySelector('[data-tour-part="spotlight"]')).toBe(spotlight)
     stopFirst()

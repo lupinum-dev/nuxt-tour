@@ -664,7 +664,9 @@ onBeforeUnmount(() => {
                     >
                       {{ labels.previous }}
                     </button>
+                    <!-- On the final step, Finish and the close control cover every exit. -->
                     <button
+                      v-if="presentation.index < controller.total.value - 1"
                       type="button"
                       :disabled="controller.pending.value"
                       data-tour-action="skip"

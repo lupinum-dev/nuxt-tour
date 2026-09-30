@@ -96,11 +96,8 @@
   line-height: 1;
   place-items: center;
   cursor: pointer;
+  transition: background-color 140ms ease;
   touch-action: manipulation;
-}
-
-[data-tour-part='close']:hover {
-  background: var(--tour-hover);
 }
 
 [data-tour-part='progress'] {
@@ -182,6 +179,10 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  [data-tour-part='close']:hover {
+    background: var(--tour-hover);
+  }
+
   [data-tour-part='actions'] button[data-tour-action]:hover:not(:disabled) {
     background: var(--tour-hover);
   }
@@ -357,7 +358,7 @@
 }
 
 /* One policy covers every owned CSS effect, including structure-only hosts. */
-[data-tour-part='root'][data-motion='none'] :is([data-tour-part='positioner'], [data-tour-part='surface'], [data-tour-action]),
+[data-tour-part='root'][data-motion='none'] :is([data-tour-part='positioner'], [data-tour-part='surface'], [data-tour-part='close'], [data-tour-action]),
 [data-tour-part='root'][data-motion='none'] [data-tour-part='spotlight']::after {
   animation: none !important;
   transition: none !important;
