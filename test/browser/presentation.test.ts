@@ -322,3 +322,35 @@ test('reduced motion closes the old card before the page jumps', async ({ page, 
   expect(visibleAfterJump).toEqual([])
   await expect(root).toHaveAttribute('data-tour-step-id', 'end')
 })
+
+test('fades the departing layer without holding focus or input', async ({ page, goto }) => {
+  await goto('/motion', { waitUntil: 'hydration' })
+  await page.getByTestId('start-motion').focus()
+  await page.getByTestId('start-motion').press('Enter')
+  await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-visual-phase', 'active')
+  const frames = await page.evaluate(async () => {
+    const samples: { root: boolean, opacity: number, focused: boolean, clickable: boolean }[] = []
+    const button = document.querySelector<HTMLElement>('[data-testid="unrelated"]')!
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    const started = performance.now()
+    await new Promise<void>((resolve) => {
+      const sample = () => {
+        const root = document.querySelector<HTMLElement>('[data-tour-part="root"]')
+        const rect = button.getBoundingClientRect()
+        samples.push({
+          root: root !== null,
+          opacity: root ? Number(getComputedStyle(root).opacity) : 0,
+          focused: document.activeElement === document.querySelector('[data-testid="start-motion"]'),
+          clickable: button.contains(document.elementFromPoint(rect.x + 5, rect.y + 5)),
+        })
+        if (performance.now() - started < 400) requestAnimationFrame(sample)
+        else resolve()
+      }
+      requestAnimationFrame(sample)
+    })
+    return samples
+  })
+  expect(frames.every(frame => frame.focused && frame.clickable), JSON.stringify(frames)).toBe(true)
+  expect(frames.some(frame => frame.root && frame.opacity > 0.05 && frame.opacity < 0.95), JSON.stringify(frames)).toBe(true)
+  expect(frames.at(-1)!.root).toBe(false)
+})
