@@ -6,6 +6,15 @@ minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
 
+auditConfig:
+  ignoreGhsas:
+    # node-forge is used only for listhen dev-server self-signed certificates.
+    # Remove when >=1.4.1 is published, past the 24-hour quarantine, and in the lockfile.
+    - GHSA-86w9-cpqp-85rv
+    # braces processes build-time glob patterns from our own config, outside the consumer runtime.
+    # Remove when >=3.0.4 is published, past the 24-hour quarantine, and in the lockfile.
+    - GHSA-vfj7-8cjw-p6xm
+
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
