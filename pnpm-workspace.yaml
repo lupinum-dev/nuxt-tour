@@ -1,15 +1,20 @@
+# `.` makes the root package visible to Changesets next to the docs site and playground.
 packages:
+  - .
   - docs
   - playground
 
+# Dependency quarantine: never install versions younger than 24 hours.
 minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true
 minimumReleaseAgeIgnoreMissingTime: false
 
+# Only these dependencies may run install scripts.
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
   sharp: true
+  # Its install script only checks for a native binding, which optional dependencies already provide.
   unrs-resolver: false
   vue-demi: true
 
