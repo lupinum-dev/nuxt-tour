@@ -16,7 +16,7 @@ pnpm test:bundle    # bundle size budget of the Vue runtime
 pnpm test:browser   # Playwright journeys in Chromium, Firefox, WebKit and mobile viewports
 pnpm test:packed    # packs the output of `pnpm build` into fresh Nuxt and Vue apps; run `pnpm build` first
 pnpm format         # apply lint fixes and sync the README agent setup from the docs
-pnpm verify         # what CI runs (browser journeys in Chromium only): lint, typecheck, tests, build, packed, audit
+pnpm verify         # the CI checks locally; browser journeys in Chromium only (CI adds Firefox, WebKit and mobile)
 pnpm changeset      # describe a user-facing change for the next release
 ```
 
@@ -40,7 +40,7 @@ Live examples on the docs site are real files in `docs/app/`. A serializer in
   protected `npm` environment.
 - Never add `NPM_TOKEN` or any other long-lived publish credential.
 - Add a changeset (`pnpm changeset`) to every pull request that changes what
-  package users install: code, types, runtime behaviour or dependencies.
+  package users install: code, types, runtime behavior or dependencies.
   Documentation, tests and CI changes need none. CI requires one when `src/`
   changes; use `pnpm changeset --empty` if users see nothing. A change to `dependencies` or `peerDependencies` of a
   published package needs a changeset that bumps that package (at least patch).
@@ -52,7 +52,7 @@ Live examples on the docs site are real files in `docs/app/`. A serializer in
   add dependencies to `allowBuilds` without a reason.
 - Pin GitHub Actions to full commit SHAs. Give each job only the permissions it needs.
 - Keep tooling lean. Add a script, check or workflow only when it guards
-  behaviour users rely on or closes a real attack path. Process is not security.
+  behavior users rely on or closes a real attack path. Process is not security.
 - Record lasting choices in [internals/decisions.md](internals/decisions.md) and
   temporary compatibility code in [internals/migrations.md](internals/migrations.md).
 
@@ -62,7 +62,7 @@ Live examples on the docs site are real files in `docs/app/`. A serializer in
   application-scoped Vue runtime; `./vue` and `./registry` are its public entries,
   `./style.css` and `./structure.css` the themes. Keep orchestration separate
   from rendering.
-- `test/` verifies module installation, public behaviour and failure boundaries;
+- `test/` verifies module installation, public behavior and failure boundaries;
   `test/browser/` runs real journeys with Playwright.
 - `playground/` is the smallest interactive Nuxt consumer.
 - `docs/` is the public documentation site and a source-workspace consumer.
@@ -70,7 +70,7 @@ Live examples on the docs site are real files in `docs/app/`. A serializer in
 
 ## Invariants
 
-- Keep one source of truth for public behaviour.
+- Keep one source of truth for public behavior.
 - `defineTour()` describes, `<TourHost />` renders, `useNuxtTour()` or the Vue
   `useTour()` controls, and semantic target IDs locate. Do not overlap these
   responsibilities.
@@ -96,7 +96,7 @@ Live examples on the docs site are real files in `docs/app/`. A serializer in
 
 ## Writing
 
-Update `docs/` in the same pull request as the behaviour it describes. Public
+Update `docs/` in the same pull request as the behavior it describes. Public
 text uses Lupinum Controlled English, based on ASD-STE100; do not claim formal
 certification.
 
