@@ -1,0 +1,11 @@
+# Contributing
+
+- Open an issue before a large change, so we can agree on the approach first.
+  Start from a concrete Nuxt or Vue user journey and explain why the current
+  contract cannot support it. Do not add options for hypothetical flexibility.
+- Keep pull requests small and focused on one change.
+- Run `pnpm verify` before you ask for review. It runs the CI checks locally, with
+  the browser journeys in Chromium only; CI also runs Firefox, WebKit and mobile.
+- Add a changeset with `pnpm changeset` when users will notice the change.
+  The style rules are in [AGENTS.md](../AGENTS.md).
+- Report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md).

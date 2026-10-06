@@ -1,44 +1,66 @@
 name: ci
 
 on:
-  push: { branches: [main] }
   pull_request:
+  push:
+    branches: [main]
+  # release.yml starts this workflow on the Version packages PR,
+  # because pull requests opened with GITHUB_TOKEN trigger no workflows on their own.
   workflow_dispatch:
-  schedule:
-    - cron: '17 3 * * 1'
-    - cron: '23 4 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event.schedule }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify:
-    name: Verify
+  check:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in sync with the `verify` script in package.json.
+        task: [lint, typecheck, test, 'test:types', 'test:bundle', build, audit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # lint compares the pull request with origin/main.
+          fetch-depth: ${{ matrix.task == 'lint' && '0' || '1' }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: corepack enable pnpm
+      - if: matrix.task != 'audit'
+        run: pnpm install --frozen-lockfile
+      - if: matrix.task != 'audit'
+        run: pnpm ${{ matrix.task }}
+      # Only production advisories that reach a published package block releases.
+      - if: matrix.task == 'audit'
+        run: node scripts/audit-deps.mjs
+
+  # Tours position cards, move focus and animate, so every engine and a phone viewport runs the journeys.
+  browser:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 24.18.0, package-manager-cache: false }
-      - run: node scripts/verify-action-shas.mjs
-      - run: corepack enable pnpm && corepack prepare pnpm@11.21.0 --activate
-      - if: github.event.schedule == '23 4 * * *'
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - if: github.event.schedule == '23 4 * * *'
-        run: pnpm check:dependencies
-      - if: github.event.schedule != '23 4 * * *'
-        run: pnpm install --frozen-lockfile
-      - if: github.event.schedule != '23 4 * * *'
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - if: github.event.schedule != '23 4 * * *'
-        run: pnpm release:verify
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: corepack enable pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm test:browser
       - if: failure()
-        name: Retain browser failure evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-failures
@@ -47,17 +69,11 @@ jobs:
             playwright-report
           if-no-files-found: ignore
           retention-days: 7
-      - if: github.event.schedule != '23 4 * * *'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-candidate
-          path: release-artifacts
-          if-no-files-found: error
-          retention-days: 90
 
-  compatibility:
-    if: github.event.schedule != '23 4 * * *'
-    name: ${{ matrix.framework }} ${{ matrix.framework-version }} / ${{ matrix.os }} / Node ${{ matrix.node }}
+  # Installs the built and packed package into fresh Nuxt and Vue apps (`pnpm test:packed`),
+  # at the oldest supported and the newest versions, and on Windows.
+  packed:
+    name: packed ${{ matrix.framework }} ${{ matrix.framework-version }} / ${{ matrix.os }} / Node ${{ matrix.node }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -82,14 +98,27 @@ jobs:
             framework-version: ^3.5.40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: "${{ matrix.node }}", package-manager-cache: false }
-      - run: node scripts/verify-action-shas.mjs
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # Not every Node version in this matrix ships corepack.
       - run: npm install --global pnpm@11.21.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm docs:build
-      - run: pnpm preview:pack
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm consumer:verify --preview --framework ${{ matrix.framework }} --framework-version ${{ matrix.framework-version }}
+      - run: node scripts/verify-packed-consumer.mjs --framework ${{ matrix.framework }} --framework-version ${{ matrix.framework-version }}
+
+  # The one required status check for the main branch ruleset.
+  ci:
+    name: ci
+    if: always()
+    needs: [check, browser, packed]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: for result in $RESULTS; do test "$result" = success; done

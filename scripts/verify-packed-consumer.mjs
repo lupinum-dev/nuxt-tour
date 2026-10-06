@@ -1,6 +1,6 @@
-import { access, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve, sep } from 'node:path'
+import { join, sep } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:net'
@@ -8,21 +8,15 @@ import { pathToFileURL } from 'node:url'
 import { stripVTControlCharacters } from 'node:util'
 import { chromium, expect } from '@playwright/test'
 import { parseDocument } from 'yaml'
-import { checkDependencyPolicyFile } from './check-dependency-policy.mjs'
-import { verifyPackageAgentDocs } from './package-agent-docs.mjs'
 
-const artifactsDirectory = process.argv.includes('--preview') ? '.preview-artifacts' : 'release-artifacts'
+// Installs the output of `pnpm build`, packed as npm would ship it, into a fresh Nuxt or Vue
+// application and runs a real tour in a browser. Run `pnpm build` first.
 const framework = readArgument('--framework') ?? 'nuxt'
 if (framework !== 'nuxt' && framework !== 'vue') {
   throw new Error(`Unsupported framework ${JSON.stringify(framework)}. Expected "nuxt" or "vue".`)
 }
-const release = JSON.parse(await readFile(`${artifactsDirectory}/release.json`, 'utf8'))
-const pkg = release.packages[0]
-if (typeof pkg.filename !== 'string' || pkg.filename.trim() !== pkg.filename || !/^[A-Za-z0-9][\w.-]*\.tgz$/.test(pkg.filename)) {
-  throw new Error('Invalid retained tarball basename.')
-}
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'))
-const tarball = resolve(artifactsDirectory, pkg.filename)
+const pkg = { name: packageJson.name, version: packageJson.version }
 const frameworkVersion = readArgument('--framework-version') ?? packageJson.devDependencies[framework]
 if (!frameworkVersion) throw new Error(`No version was provided for ${framework}.`)
 // Resolve Windows short temp paths before Vite compares its root with real files.
@@ -30,6 +24,11 @@ const consumer = await realpath(await mkdtemp(join(tmpdir(), 'lupinum-packed-con
 
 try {
   await mkdir(join(consumer, 'src'), { recursive: true })
+  // Pack like the release job, so the tarball holds exactly what `pnpm build` wrote.
+  runPnpm(['pack', '--pack-destination', consumer], 'Packing the built package failed.', process.cwd())
+  const tarballs = (await readdir(consumer)).filter(name => name.endsWith('.tgz'))
+  if (tarballs.length !== 1) throw new Error(`Expected one packed Tour package, found ${tarballs.length}.`)
+  const tarball = join(consumer, tarballs[0])
   await writeFile(join(consumer, 'package.json'), `${JSON.stringify({
     private: true,
     type: 'module',
@@ -45,14 +44,11 @@ try {
     },
   }, null, 2)}\n`)
 
-  // Preserve the root policy, including reviewed metadata on exact exceptions.
+  // Keep the quarantine and build permissions in the isolated install.
   // Only the workspace package inventory changes in this disposable installation.
   const workspace = parseDocument(await readFile('pnpm-workspace.yaml', 'utf8'))
   workspace.set('packages', [])
-  const policyPath = join(consumer, 'pnpm-workspace.yaml')
-  await writeFile(policyPath, workspace.toString())
-  const failures = await checkDependencyPolicyFile(policyPath)
-  if (failures.length) throw new Error(failures.join('\n'))
+  await writeFile(join(consumer, 'pnpm-workspace.yaml'), workspace.toString())
 
   if (framework === 'nuxt') await writeNuxtConsumer()
   else await writeVueConsumer()
@@ -64,7 +60,7 @@ try {
   }
   const installedPackage = await realpath(join(consumer, 'node_modules', ...pkg.name.split('/')))
   if (!installedPackage.startsWith(`${await realpath(consumer)}${sep}`)) throw new Error('Packed package resolved outside its isolated consumer.')
-  await verifyPackageAgentDocs(installedPackage)
+  await verifyAgentDocs(installedPackage)
   run(process.execPath, ['--input-type=module', '--eval', `
     const root = await import(${JSON.stringify(pkg.name)})
     if (typeof root.default !== 'function') throw new Error('Nuxt module default export is missing.')
@@ -94,16 +90,26 @@ function readArgument(name) {
   return index === -1 ? undefined : process.argv[index + 1]
 }
 
-function runPnpm(args, fallbackMessage) {
-  // Reuse pnpm's JS entry to preserve the Windows compatibility lane.
+function runPnpm(args, fallbackMessage, cwd = consumer) {
+  // Reuse pnpm's JS entry when a pnpm script started us; otherwise Windows needs a shell for pnpm.cmd.
   const cli = process.env.npm_execpath
-  if (cli?.includes('pnpm')) run(process.execPath, [cli, ...args], fallbackMessage)
-  else run('pnpm', args, fallbackMessage)
+  if (cli?.includes('pnpm')) run(process.execPath, [cli, ...args], fallbackMessage, cwd)
+  else run('pnpm', args, fallbackMessage, cwd)
 }
 
-function run(command, args, fallbackMessage) {
-  const result = spawnSync(command, args, { cwd: consumer, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+function run(command, args, fallbackMessage, cwd = consumer) {
+  const shell = command === 'pnpm' && process.platform === 'win32'
+  const result = spawnSync(command, args, { cwd, shell, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
   if (result.status !== 0) throw new Error([result.stdout, result.stderr, result.error?.message].filter(Boolean).join('\n').trim() || fallbackMessage)
+}
+
+// The packaged docs index must exist and every page it links must ship in the tarball.
+async function verifyAgentDocs(installedPackage) {
+  const agent = join(installedPackage, 'dist', 'agent')
+  const index = await readFile(join(agent, 'AGENTS.md'), 'utf8')
+  const pages = [...index.matchAll(/\]\((\.\/pages\/[^)\s]+\.md)\)/g)].map(match => match[1])
+  if (!pages.length) throw new Error('dist/agent/AGENTS.md links no documentation pages.')
+  for (const page of pages) await access(join(agent, page))
 }
 
 async function verifyJourney(development = false) {
