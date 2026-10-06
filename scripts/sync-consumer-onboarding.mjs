@@ -12,7 +12,7 @@ function bounds(source) {
   return [source.indexOf(begin), source.indexOf(end) + end.length]
 }
 
-const source = await readFile(resolve(root, 'docs/content/docs/1.getting-started/1.index.md'), 'utf8')
+const source = await readFile(resolve(root, 'docs/content/docs/1.getting-started/6.ai-agents.md'), 'utf8')
 const [start, finish] = bounds(source)
 const block = source.slice(start, finish)
 const path = resolve(root, 'README.md')
@@ -23,5 +23,5 @@ if (process.argv.includes('--write')) {
   await writeFile(path, current.slice(0, from) + block + current.slice(to))
 }
 else if (current.slice(from, to) !== block) {
-  throw new Error('README.md onboarding is stale. Run pnpm docs:onboarding.')
+  throw new Error('README.md onboarding is stale. Run pnpm format.')
 }

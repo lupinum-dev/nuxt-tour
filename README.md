@@ -12,6 +12,7 @@
   <a href="https://www.npmjs.com/package/@lupinum/nuxt-tour"><img alt="npm" src="https://img.shields.io/npm/v/@lupinum/nuxt-tour"></a>
   <a href="https://github.com/lupinum-dev/nuxt-tour/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/lupinum-dev/nuxt-tour/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://discord.lupinum.com"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20the%20chat-5865F2?logo=discord&logoColor=white"></a>
 </p>
 
 ## Why Nuxt Tour?
@@ -40,33 +41,6 @@ export default defineNuxtConfig({
   modules: ['@lupinum/nuxt-tour'],
 })
 ```
-
-<!-- BEGIN:consumer-onboarding -->
-
-### Use a coding agent
-
-A coding agent is a development tool that can inspect and change your project.
-After installation, copy this prompt into your coding agent:
-
-```text
-Add Nuxt Tour to this Nuxt application and build one accessible product tour.
-Read the project's existing instructions first. Resolve
-@lupinum/nuxt-tour/agent-docs from this application's directory and read its
-starting pages. Use the installed version's examples and public types. Preserve
-existing routes, interaction behavior, conventions, and AGENTS.md instructions.
-Add or update one short Nuxt Tour pointer in AGENTS.md if the project allows it;
-do not duplicate the documentation. If the file is absent, create only that
-pointer. Report missing guidance. Verify start, step navigation, finish, Escape,
-focus return, and a narrow screen. Use semantic target IDs instead of selectors.
-```
-
-If the installed package has no `agent-docs` export, read its packaged README
-and types. Use documentation from the matching source tag when more detail is
-needed. Installing or updating the package does not edit project instructions.
-The pointer resolves the installed package, so upgrades and rollbacks select
-the matching documentation without copying it into your application.
-
-<!-- END:consumer-onboarding -->
 
 ```ts
 // app/tours/onboarding.ts
@@ -121,6 +95,55 @@ CSS when the card should match your product more closely.
 Read the [documentation](docs/content/docs/1.getting-started/1.index.md) for
 targets, route-aware steps, interaction modes, events, and errors.
 
+<!-- BEGIN:consumer-onboarding -->
+
+## Agent setup
+
+`@lupinum/nuxt-tour` ships its documentation inside the package for coding
+agents such as Claude Code, Codex and Cursor. The pages match the installed
+version, so an agent does not follow the website for a different version.
+
+To set it up, give your coding agent this task:
+
+```text
+Set up @lupinum/nuxt-tour for coding agents as described under "Agent setup" in its README.
+```
+
+### Steps for the agent
+
+1. Find `node_modules/@lupinum/nuxt-tour/dist/agent/AGENTS.md`. Look in the
+   directory of the project that depends on `@lupinum/nuxt-tour` first, then
+   in its parent directories up to the repository root (workspaces can hoist
+   packages). Read it; it lists the documentation pages.
+2. Add the section below to the project's agent instructions: `AGENTS.md`, or
+   `CLAUDE.md` if the project has only that file. If it has neither, create
+   `AGENTS.md`. Write the path relative to the repository root, through
+   `node_modules/@lupinum/nuxt-tour` (for example
+   `apps/web/node_modules/@lupinum/nuxt-tour/...` in a workspace). Never write
+   a resolved path such as `node_modules/.pnpm/...`: it contains the version and
+   breaks after an upgrade. If a section for `@lupinum/nuxt-tour` already
+   exists, leave it as it is.
+
+   Use the path you found in place of the sample path:
+
+   ```md
+   ## @lupinum/nuxt-tour
+
+   Before you change code that uses @lupinum/nuxt-tour, read
+   `node_modules/@lupinum/nuxt-tour/dist/agent/AGENTS.md` and the pages it
+   lists. They document the installed version. Prefer them over what you
+   remember about this package and over the website.
+   ```
+
+3. Do not copy the documentation into the project and do not install a skill.
+   The section points into the installed package, so it stays correct after
+   every upgrade or downgrade.
+
+If the file does not exist, the installed version has no packaged
+documentation. Read the package README and its TypeScript types instead.
+
+<!-- END:consumer-onboarding -->
+
 ## Requirements
 
 - Node.js 22.19 or later, Node.js 24.11 or later, or Node.js 26.
@@ -135,13 +158,13 @@ pnpm install
 pnpm verify
 ```
 
-Use `pnpm dev` for the Nuxt playground. Read [CONTRIBUTING.md](CONTRIBUTING.md)
-before you open a pull request. Maintainers use [MAINTAINING.md](MAINTAINING.md).
+Use `pnpm dev` for the Nuxt playground. Read [CONTRIBUTING.md](.github/CONTRIBUTING.md)
+before you open a pull request.
 
 ## Support and security
 
-Ask questions in the [Lupinum OSS Discord](https://discord.gg/RPH6SeA36N).
-Report vulnerabilities through [GitHub private vulnerability reporting](https://github.com/lupinum-dev/nuxt-tour/security/advisories/new).
+Ask questions in the [Lupinum OSS Discord](https://discord.lupinum.com). Report
+vulnerabilities privately as described in [SECURITY.md](.github/SECURITY.md).
 
 ## License
 
