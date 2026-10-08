@@ -328,9 +328,16 @@ test('fades the departing layer without holding focus or input', async ({ page, 
   await page.getByTestId('start-motion').focus()
   await page.getByTestId('start-motion').press('Enter')
   await expect(page.locator('[data-tour-part="root"]')).toHaveAttribute('data-visual-phase', 'active')
-  const frames = await page.evaluate(async () => {
-    const samples: { root: boolean, opacity: number, focused: boolean, clickable: boolean }[] = []
+  const { frames, exitAnimations } = await page.evaluate(async () => {
+    const samples: { root: boolean, focused: boolean, clickable: boolean }[] = []
+    const exitAnimations: string[] = []
     const button = document.querySelector<HTMLElement>('[data-testid="unrelated"]')!
+    // The fade lasts about 100 ms, so a slow frame can skip it. Record the exit animation itself.
+    const observer = new MutationObserver(() => {
+      const leaving = document.querySelector<HTMLElement>('[data-tour-part="root"][data-leaving]')
+      if (leaving && !exitAnimations.length) exitAnimations.push(...leaving.getAnimations().map(animation => (animation as CSSAnimation).animationName))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-leaving'], childList: true, subtree: true })
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
     const started = performance.now()
     await new Promise<void>((resolve) => {
@@ -339,7 +346,6 @@ test('fades the departing layer without holding focus or input', async ({ page, 
         const rect = button.getBoundingClientRect()
         samples.push({
           root: root !== null,
-          opacity: root ? Number(getComputedStyle(root).opacity) : 0,
           focused: document.activeElement === document.querySelector('[data-testid="start-motion"]'),
           clickable: button.contains(document.elementFromPoint(rect.x + 5, rect.y + 5)),
         })
@@ -348,9 +354,10 @@ test('fades the departing layer without holding focus or input', async ({ page, 
       }
       requestAnimationFrame(sample)
     })
-    return samples
+    observer.disconnect()
+    return { frames: samples, exitAnimations }
   })
   expect(frames.every(frame => frame.focused && frame.clickable), JSON.stringify(frames)).toBe(true)
-  expect(frames.some(frame => frame.root && frame.opacity > 0.05 && frame.opacity < 0.95), JSON.stringify(frames)).toBe(true)
+  expect(exitAnimations).toContain('nuxt-tour-disappear')
   expect(frames.at(-1)!.root).toBe(false)
 })
