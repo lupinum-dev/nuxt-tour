@@ -242,6 +242,31 @@ test('keeps a shown card on its side while a large target scrolls', async ({ pag
   expect(placements.every(placement => placement === shown), JSON.stringify({ shown, placements })).toBe(true)
 })
 
+test('keeps the side a card moved to when no side has room again', async ({ page, goto }) => {
+  await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.getByTestId('start-tall').click()
+  const root = page.locator('[data-tour-part="root"]')
+  const positioner = page.locator('[data-tour-part="positioner"]')
+  await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  const target = page.locator('[data-tour-target="scroll-tall"]')
+  const side = async () => (await positioner.getAttribute('data-placement'))!.split('-')[0]
+  const first = await side()
+  // Room opens only below the target, so the card moves there.
+  await target.evaluate((element) => {
+    const top = element.getBoundingClientRect().top
+    element.style.height = `${Math.max(40, innerHeight * 0.3)}px`
+    scrollBy({ top: top - 8, behavior: 'instant' })
+  })
+  await expect.poll(side).not.toBe(first)
+  const moved = await side()
+  // Without room on either side again, the card keeps its new side.
+  await target.evaluate((element) => {
+    element.style.height = 'calc(100vh - 160px)'
+  })
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  expect(await side()).toBe(moved)
+})
+
 test('shows no loading feedback while the tour itself scrolls', async ({ page, goto }) => {
   await goto('/scrolling', { waitUntil: 'hydration' })
   await page.getByTestId('start-scroll').click()

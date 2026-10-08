@@ -151,6 +151,12 @@ const { floatingStyles, middlewareData, placement: resolvedPlacement, update } =
   },
 })
 
+// After a shown modal card moves to a side with room, that side becomes the one
+// it keeps, so a later lack of room on every side cannot return it to the old side.
+watch(resolvedPlacement, (current) => {
+  if (positionReady.value && presentation.value?.target && interaction.value === 'modal') shownPlacement.value = current
+})
+
 const arrowStyle = computed<CSSProperties>(() => {
   const position = middlewareData.value.arrow
   const side = resolvedPlacement.value.split('-')[0]!
