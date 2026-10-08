@@ -6,7 +6,7 @@
 
 - [#35](https://github.com/lupinum-dev/nuxt-tour/pull/35) [`8e4e363`](https://github.com/lupinum-dev/nuxt-tour/commit/8e4e363a78b556041e2bb36da28d28d891e69634) Thanks [@Mat4m0](https://github.com/Mat4m0)! - Add a fade-out when a tour ends, and remove the Skip button from the final step.
   
-  The final step now offers only finishing the tour. The close button hover is smoother.
+  Finish and the close control end the tour from the final step. The close button hover is smoother.
 
 ### Patch Changes
 
