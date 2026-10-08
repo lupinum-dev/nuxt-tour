@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#35](https://github.com/lupinum-dev/nuxt-tour/pull/35) [`8e4e363`](https://github.com/lupinum-dev/nuxt-tour/commit/8e4e363a78b556041e2bb36da28d28d891e69634) Thanks [@Mat4m0](https://github.com/Mat4m0)! - Add a fade-out when a tour ends, and remove the Skip button from the final step.
+  
+  Finish and the close control end the tour from the final step. The close button hover is smoother.
+
+### Patch Changes
+
+- [#34](https://github.com/lupinum-dev/nuxt-tour/pull/34) [`5ff00cd`](https://github.com/lupinum-dev/nuxt-tour/commit/5ff00cd8dff0b503d505df43de5eb8a8651eb9c3) Thanks [@Mat4m0](https://github.com/Mat4m0)! - Fix spotlight and step transitions so they stay stable while the page scrolls or its layout changes.
+  
+  The spotlight now travels with scroll and layout changes, and an early reveal only starts when the next target is also close horizontally.
+
 ## v0.2.1
 
 [compare changes](https://github.com/lupinum-dev/nuxt-tour/compare/v0.2.0...v0.2.1)
