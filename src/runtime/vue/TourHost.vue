@@ -325,6 +325,28 @@ async function waitForAnimationFrames(count: number): Promise<void> {
   }
 }
 
+// The tour has already ended when this runs: focus has returned and the page
+// owns input again. The departing layer is inert and only fades.
+function leave(element: Element, done: () => void): void {
+  const layer = element as HTMLElement
+  layer.inert = true
+  layer.setAttribute('aria-hidden', 'true')
+  layer.dataset.leaving = ''
+  const animations = document.hidden || typeof layer.getAnimations !== 'function'
+    ? []
+    : layer.getAnimations().filter(animation => 'animationName' in animation && animation.animationName === 'nuxt-tour-disappear')
+  if (animations.length === 0) {
+    done()
+    return
+  }
+  // A theme override must not keep a departed layer in the document.
+  const timer = setTimeout(done, 200)
+  void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+    clearTimeout(timer)
+    done()
+  })
+}
+
 function closeTour(): void {
   run(() => controller.value?.cancel('close-button') ?? Promise.resolve())
 }
@@ -502,174 +524,182 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport
-    v-if="mounted && visualPhase !== 'hidden'"
+    v-if="mounted"
     to="body"
   >
-    <div
-      ref="root"
-      data-tour-part="root"
-      :data-motion="runtime.motion"
-      tabindex="-1"
-      :role="!presentation ? 'dialog' : undefined"
-      :aria-modal="!presentation ? 'true' : undefined"
-      :aria-label="!presentation ? labels.pending : undefined"
-      :data-tour-id="presentation?.definition.id"
-      :data-tour-step-id="presentation?.step.id"
-      :data-visual-phase="visualPhase"
-      :data-relocating="relocating ? '' : undefined"
-      :data-travel="travel ? '' : undefined"
+    <Transition
+      :css="false"
+      @leave="leave"
     >
       <div
-        data-tour-part="overlay"
-        :data-centered="!visualTarget || !targetRect ? '' : undefined"
-        aria-hidden="true"
-      />
-
-      <div
-        v-if="visualTarget && targetRect"
-        ref="spotlight"
-        data-tour-part="spotlight"
-        aria-hidden="true"
-      />
-
-      <div
-        v-if="interaction === 'modal'"
-        data-tour-part="blocker"
-        style="inset: 0"
-        aria-hidden="true"
-      />
-      <div
-        v-for="(style, blockerIndex) in blockers"
-        :key="blockerIndex"
-        data-tour-part="blocker"
-        :style="style"
-        aria-hidden="true"
-      />
-
-      <div
-        v-if="slowPending"
-        ref="loading"
-        data-tour-part="loading"
-        :aria-label="labels.pending"
+        v-if="visualPhase !== 'hidden'"
+        ref="root"
+        data-tour-part="root"
+        :data-motion="runtime.motion"
         tabindex="-1"
+        :role="!presentation ? 'dialog' : undefined"
+        :aria-modal="!presentation ? 'true' : undefined"
+        :aria-label="!presentation ? labels.pending : undefined"
+        :data-tour-id="presentation?.definition.id"
+        :data-tour-step-id="presentation?.step.id"
+        :data-visual-phase="visualPhase"
+        :data-relocating="relocating ? '' : undefined"
+        :data-travel="travel ? '' : undefined"
       >
-        <span role="status">{{ labels.pending }}</span>
-        <button
-          type="button"
-          @click="run(() => runtime.cancelActive('close-button'))"
+        <div
+          data-tour-part="overlay"
+          :data-centered="!visualTarget || !targetRect ? '' : undefined"
+          aria-hidden="true"
+        />
+
+        <div
+          v-if="visualTarget && targetRect"
+          ref="spotlight"
+          data-tour-part="spotlight"
+          aria-hidden="true"
+        />
+
+        <div
+          v-if="interaction === 'modal'"
+          data-tour-part="blocker"
+          style="inset: 0"
+          aria-hidden="true"
+        />
+        <div
+          v-for="(style, blockerIndex) in blockers"
+          :key="blockerIndex"
+          data-tour-part="blocker"
+          :style="style"
+          aria-hidden="true"
+        />
+
+        <div
+          v-if="slowPending"
+          ref="loading"
+          data-tour-part="loading"
+          :aria-label="labels.pending"
+          tabindex="-1"
         >
-          {{ labels.close }}
-        </button>
-      </div>
-
-      <div
-        v-if="presentation && controller && slotContext"
-        ref="floating"
-        data-tour-part="positioner"
-        :data-placement="presentation.target ? resolvedPlacement : undefined"
-        :data-positioned="!presentation.target || positionReady ? '' : undefined"
-        :style="cardStyle"
-      >
-        <div data-tour-part="surface">
-          <section
-            ref="card"
-            data-tour-part="card"
-            role="dialog"
-            :aria-modal="interaction === 'modal' ? 'true' : undefined"
-            :aria-label="slotContext.ariaLabel"
-            :aria-describedby="descriptionId"
-            :aria-busy="controller.pending.value ? 'true' : undefined"
-            tabindex="-1"
+          <span role="status">{{ labels.pending }}</span>
+          <button
+            type="button"
+            @click="run(() => runtime.cancelActive('close-button'))"
           >
-            <slot
-              name="card"
-              v-bind="slotContext"
+            {{ labels.close }}
+          </button>
+        </div>
+
+        <div
+          v-if="presentation && controller && slotContext"
+          ref="floating"
+          data-tour-part="positioner"
+          :data-placement="presentation.target ? resolvedPlacement : undefined"
+          :data-positioned="!presentation.target || positionReady ? '' : undefined"
+          :style="cardStyle"
+        >
+          <div data-tour-part="surface">
+            <section
+              ref="card"
+              data-tour-part="card"
+              role="dialog"
+              :aria-modal="interaction === 'modal' ? 'true' : undefined"
+              :aria-label="slotContext.ariaLabel"
+              :aria-describedby="descriptionId"
+              :aria-busy="controller.pending.value ? 'true' : undefined"
+              tabindex="-1"
             >
-              <button
-                type="button"
-                data-tour-part="close"
-                :aria-label="labels.close"
-                @click="closeTour"
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-
               <slot
-                name="progress"
+                name="card"
                 v-bind="slotContext"
-                :labels="labels"
               >
-                <p data-tour-part="progress">
-                  {{ labels.progress(presentation.index + 1, controller.total.value) }}
-                </p>
-              </slot>
-              <span
-                v-if="controller.pending.value"
-                data-tour-part="pending"
-                role="status"
-              >
-                {{ labels.pending }}
-              </span>
-              <h2
-                v-if="stepLabels.title"
-                :id="titleId"
-                data-tour-part="title"
-                tabindex="-1"
-              >
-                {{ stepLabels.title }}
-              </h2>
-              <div :id="descriptionId">
-                <TourContent :step="presentation.step" />
-              </div>
+                <button
+                  type="button"
+                  data-tour-part="close"
+                  :aria-label="labels.close"
+                  @click="closeTour"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
 
-              <div data-tour-part="actions">
                 <slot
-                  name="actions"
+                  name="progress"
                   v-bind="slotContext"
                   :labels="labels"
                 >
-                  <button
-                    v-if="presentation.index > 0"
-                    data-tour-action="previous"
-                    type="button"
-                    :disabled="controller.pending.value"
-                    @click="run(controller.previous)"
-                  >
-                    {{ labels.previous }}
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="controller.pending.value"
-                    data-tour-action="skip"
-                    @click="run(controller.skip)"
-                  >
-                    {{ labels.skip }}
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="controller.pending.value"
-                    data-tour-action="next"
-                    @click="run(controller.next)"
-                  >
-                    {{ presentation.index === controller.total.value - 1 ? labels.finish : labels.next }}
-                  </button>
+                  <p data-tour-part="progress">
+                    {{ labels.progress(presentation.index + 1, controller.total.value) }}
+                  </p>
                 </slot>
-              </div>
-            </slot>
-          </section>
-          <svg
-            v-if="presentation.target && positionReady"
-            ref="arrow"
-            data-tour-part="arrow"
-            :style="arrowStyle"
-            viewBox="0 0 14 14"
-            focusable="false"
-            aria-hidden="true"
-          >
-            <path d="M0 8Q3 8 5.7 3.2Q7 1 8.3 3.2Q11 8 14 8" />
-          </svg>
+                <span
+                  v-if="controller.pending.value"
+                  data-tour-part="pending"
+                  role="status"
+                >
+                  {{ labels.pending }}
+                </span>
+                <h2
+                  v-if="stepLabels.title"
+                  :id="titleId"
+                  data-tour-part="title"
+                  tabindex="-1"
+                >
+                  {{ stepLabels.title }}
+                </h2>
+                <div :id="descriptionId">
+                  <TourContent :step="presentation.step" />
+                </div>
+
+                <div data-tour-part="actions">
+                  <slot
+                    name="actions"
+                    v-bind="slotContext"
+                    :labels="labels"
+                  >
+                    <button
+                      v-if="presentation.index > 0"
+                      data-tour-action="previous"
+                      type="button"
+                      :disabled="controller.pending.value"
+                      @click="run(controller.previous)"
+                    >
+                      {{ labels.previous }}
+                    </button>
+                    <!-- On the final step, Finish and the close control cover every exit. -->
+                    <button
+                      v-if="presentation.index < controller.total.value - 1"
+                      type="button"
+                      :disabled="controller.pending.value"
+                      data-tour-action="skip"
+                      @click="run(controller.skip)"
+                    >
+                      {{ labels.skip }}
+                    </button>
+                    <button
+                      type="button"
+                      :disabled="controller.pending.value"
+                      data-tour-action="next"
+                      @click="run(controller.next)"
+                    >
+                      {{ presentation.index === controller.total.value - 1 ? labels.finish : labels.next }}
+                    </button>
+                  </slot>
+                </div>
+              </slot>
+            </section>
+            <svg
+              v-if="presentation.target && positionReady"
+              ref="arrow"
+              data-tour-part="arrow"
+              :style="arrowStyle"
+              viewBox="0 0 14 14"
+              focusable="false"
+              aria-hidden="true"
+            >
+              <path d="M0 8Q3 8 5.7 3.2Q7 1 8.3 3.2Q11 8 14 8" />
+            </svg>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>

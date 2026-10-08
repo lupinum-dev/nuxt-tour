@@ -32,6 +32,12 @@
   touch-action: none;
 }
 
+/* A departing layer never takes input from the page. */
+[data-tour-part='root'][data-leaving],
+[data-tour-part='root'][data-leaving] * {
+  pointer-events: none !important;
+}
+
 [data-tour-part='positioner'] {
   --tour-enter-x: 0;
   --tour-enter-y: 0.375rem;
