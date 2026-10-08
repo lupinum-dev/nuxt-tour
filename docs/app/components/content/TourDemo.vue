@@ -15,6 +15,9 @@ const projects = computed(() => {
 })
 
 async function startTour(): Promise<void> {
+  // Disabling the focused button would drop focus, so the tour could not
+  // return it on close. Ignore repeated presses while the tour starts instead.
+  if (tour.pending.value) return
   errorMessage.value = ''
   try {
     await tour.start({ replace: true })
@@ -45,7 +48,7 @@ function createProject(): void {
       <button
         type="button"
         class="demo-start"
-        :disabled="tour.pending.value"
+        :aria-disabled="tour.pending.value ? 'true' : undefined"
         @click="startTour"
       >
         <Icon
@@ -283,12 +286,12 @@ function createProject(): void {
   height: 1rem;
 }
 
-.demo-start:active:not(:disabled),
+.demo-start:active:not([aria-disabled='true']),
 .demo-create:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-.demo-start:disabled {
+.demo-start[aria-disabled='true'] {
   cursor: wait;
 }
 
@@ -612,7 +615,7 @@ function createProject(): void {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .demo-start:hover:not(:disabled),
+  .demo-start:hover:not([aria-disabled='true']),
   .demo-create:hover:not(:disabled) {
     opacity: 0.88;
   }
