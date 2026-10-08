@@ -18,6 +18,8 @@ export function createSpotlightMotion(element: HTMLElement) {
   let velocity = restingVelocity()
   let frame = 0
   let complete: (() => void) | undefined
+  // The endpoints of the running travel. A geometry update may shift them.
+  let path: { start: Geometry, end: Geometry } | undefined
 
   const paint = (geometry: Geometry) => {
     displayed = geometry
@@ -30,6 +32,7 @@ export function createSpotlightMotion(element: HTMLElement) {
   const stop = () => {
     view.cancelAnimationFrame(frame)
     frame = 0
+    path = undefined
     complete?.()
     complete = undefined
   }
@@ -53,18 +56,30 @@ export function createSpotlightMotion(element: HTMLElement) {
       // on the custom property. It is visual padding, never a pointer hit area.
       const padding = Number.parseFloat(view.getComputedStyle(element).paddingTop) || 0
       const next = { x: rect.left - padding, y: rect.top - padding, width: rect.width + padding * 2, height: rect.height + padding * 2 }
+      const settled = () => new Promise<void>((resolve) => {
+        if (!complete) resolve()
+        else {
+          const previous = complete
+          complete = () => {
+            previous()
+            resolve()
+          }
+        }
+      })
       if (destination && next.x === destination.x && next.y === destination.y
         && next.width === destination.width && next.height === destination.height) {
-        return new Promise((resolve) => {
-          if (!complete) resolve()
-          else {
-            const previous = complete
-            complete = () => {
-              previous()
-              resolve()
-            }
-          }
-        })
+        return settled()
+      }
+      if (!animate && frame && path && displayed && destination) {
+        // Scroll and layout observers report the destination again during
+        // travel. Move the whole path with the page, so the opening stays on
+        // its content without restarting the travel or snapping to its end.
+        const dx = next.x - destination.x
+        const dy = next.y - destination.y
+        path = { start: { ...path.start, x: path.start.x + dx, y: path.start.y + dy }, end: next }
+        destination = next
+        paint({ ...displayed, x: displayed.x + dx, y: displayed.y + dy })
+        return settled()
       }
       const redirectedVelocity = frame ? { ...velocity } : undefined
       stop()
@@ -82,6 +97,7 @@ export function createSpotlightMotion(element: HTMLElement) {
         width: (next.width - start.width) * 3 / duration, height: (next.height - start.height) * 3 / duration,
       }
       const startedAt = view.performance.now()
+      path = { start, end: next }
       return new Promise((resolve) => {
         complete = resolve
         const tick = (time: number) => {
@@ -90,9 +106,10 @@ export function createSpotlightMotion(element: HTMLElement) {
           // and reaches the destination with zero velocity. Normal starts retain
           // the existing quick ease-out response without a spring dependency.
           const u = progress
+          const { start, end } = path!
           const position = { ...start }
           for (const axis of axes) {
-            const delta = next[axis] - start[axis]
+            const delta = end[axis] - start[axis]
             position[axis] = start[axis] + (-2 * u ** 3 + 3 * u ** 2) * delta
               + (u ** 3 - 2 * u ** 2 + u) * duration * initialVelocity[axis]
             velocity[axis] = (-6 * u ** 2 + 6 * u) * delta / duration

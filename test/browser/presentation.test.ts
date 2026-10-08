@@ -219,3 +219,106 @@ test('updates clear spacing between steps that share the same target', async ({ 
   await expect(root).toHaveAttribute('data-visual-phase', 'active')
   expect(await gap()).toBeCloseTo(51, 0)
 })
+
+test('keeps a shown card on its side while a large target scrolls', async ({ page, goto }) => {
+  await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.getByTestId('start-tall').click()
+  const root = page.locator('[data-tour-part="root"]')
+  const positioner = page.locator('[data-tour-part="positioner"]')
+  await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  const shown = await positioner.getAttribute('data-placement')
+  const placements = await page.evaluate(async () => {
+    const frame = () => new Promise(requestAnimationFrame)
+    const result: string[] = []
+    // Small user scrolls move the balance between both short sides.
+    for (const offset of [24, 24, -72, -24, 48]) {
+      scrollBy({ top: offset, behavior: 'instant' })
+      await frame()
+      await frame()
+      result.push(document.querySelector<HTMLElement>('[data-tour-part="positioner"]')!.dataset.placement!)
+    }
+    return result
+  })
+  expect(placements.every(placement => placement === shown), JSON.stringify({ shown, placements })).toBe(true)
+})
+
+test('keeps the side a card moved to when no side has room again', async ({ page, goto }) => {
+  await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.getByTestId('start-tall').click()
+  const root = page.locator('[data-tour-part="root"]')
+  const positioner = page.locator('[data-tour-part="positioner"]')
+  await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  const target = page.locator('[data-tour-target="scroll-tall"]')
+  const side = async () => (await positioner.getAttribute('data-placement'))!.split('-')[0]
+  const first = await side()
+  // Room opens only below the target, so the card moves there.
+  await target.evaluate((element) => {
+    const top = element.getBoundingClientRect().top
+    element.style.height = `${Math.max(40, innerHeight * 0.3)}px`
+    scrollBy({ top: top - 8, behavior: 'instant' })
+  })
+  await expect.poll(side).not.toBe(first)
+  const moved = await side()
+  // Without room on either side again, the card keeps its new side.
+  await target.evaluate((element) => {
+    element.style.height = 'calc(100vh - 160px)'
+  })
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  expect(await side()).toBe(moved)
+})
+
+test('shows no loading feedback while the tour itself scrolls', async ({ page, goto }) => {
+  await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.getByTestId('start-scroll').click()
+  const root = page.locator('[data-tour-part="root"]')
+  await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  const probe = await page.evaluate(async () => {
+    const started = performance.now()
+    let loading = false
+    let scrolled = 0
+    document.querySelector<HTMLButtonElement>('[data-tour-action="next"]')!.click()
+    await new Promise<void>((resolve) => {
+      const sample = () => {
+        loading ||= document.querySelector('[data-tour-part="loading"]') !== null
+        scrolled = scrollY
+        const root = document.querySelector<HTMLElement>('[data-tour-part="root"]')
+        if (root?.dataset.tourStepId === 'end' && root.dataset.visualPhase === 'active') resolve()
+        else if (performance.now() - started > 4000) resolve()
+        else requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+    return { loading, scrolled, duration: performance.now() - started }
+  })
+  expect(probe.scrolled).toBeGreaterThan(1000)
+  expect(probe.loading, JSON.stringify(probe)).toBe(false)
+})
+
+test('reduced motion closes the old card before the page jumps', async ({ page, goto }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await goto('/scrolling', { waitUntil: 'hydration' })
+  await page.getByTestId('start-scroll').click()
+  const root = page.locator('[data-tour-part="root"]')
+  await expect(root).toHaveAttribute('data-visual-phase', 'active')
+  const visibleAfterJump = await page.evaluate(async () => {
+    const top = scrollY
+    const started = performance.now()
+    const samples: number[] = []
+    document.querySelector<HTMLButtonElement>('[data-tour-action="next"]')!.click()
+    await new Promise<void>((resolve) => {
+      const sample = () => {
+        const root = document.querySelector<HTMLElement>('[data-tour-part="root"]')
+        const positioner = document.querySelector<HTMLElement>('[data-tour-part="positioner"]')
+        if (scrollY !== top && root?.dataset.tourStepId === 'start' && positioner) {
+          samples.push(Number(getComputedStyle(positioner).opacity))
+        }
+        if (root?.dataset.tourStepId === 'end' || performance.now() - started > 3000) resolve()
+        else requestAnimationFrame(sample)
+      }
+      requestAnimationFrame(sample)
+    })
+    return samples.filter(opacity => opacity > 0.05)
+  })
+  expect(visibleAfterJump).toEqual([])
+  await expect(root).toHaveAttribute('data-tour-step-id', 'end')
+})

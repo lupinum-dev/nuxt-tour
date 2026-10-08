@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { arrow as floatingArrow, autoUpdate, flip, offset, shift, size, useFloating } from '@floating-ui/vue'
+import type { Placement } from '@floating-ui/vue'
 import { createFocusTrap } from 'focus-trap'
 import type { FocusTrap } from 'focus-trap'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
@@ -64,7 +65,13 @@ const controller = computed<TourController | null>(() => {
   return current ? runtime.controller(current.definition.id) : null
 })
 const labels = computed<TourLabels>(() => ({ ...defaultLabels, ...props.labels }))
-const placement = computed(() => presentation.value?.step.placement ?? 'bottom')
+// A scroll tail or resize can leave both sides of a large target almost equally
+// short of room. Once a modal card is shown, keep its side unless another side
+// fits, so the visible card never jumps across its target. Other modes do not
+// shift across the target: size() fits their card to its side, so a sticky side
+// could keep a card that was measured during a content swap too small.
+const shownPlacement = shallowRef<Placement | null>(null)
+const placement = computed(() => shownPlacement.value ?? presentation.value?.step.placement ?? 'bottom')
 const interaction = computed(() => presentation.value?.step.interaction ?? 'modal')
 const stepLabels = computed(() => {
   const current = presentation.value
@@ -107,7 +114,7 @@ function updateArrowMetrics(): void {
 
 const middleware = computed(() => [
   offset(presentation.value?.step.offset ?? defaultOffset.value),
-  flip({ padding: 12 }),
+  flip({ padding: 12, fallbackStrategy: shownPlacement.value ? 'initialPlacement' : 'bestFit' }),
   shift({ padding: 12, crossAxis: interaction.value === 'modal' }),
   size({
     padding: 12,
@@ -142,6 +149,12 @@ const { floatingStyles, middlewareData, placement: resolvedPlacement, update } =
       updatePosition()
     })
   },
+})
+
+// After a shown modal card moves to a side with room, that side becomes the one
+// it keeps, so a later lack of room on every side cannot return it to the old side.
+watch(resolvedPlacement, (current) => {
+  if (positionReady.value && presentation.value?.target && interaction.value === 'modal') shownPlacement.value = current
 })
 
 const arrowStyle = computed<CSSProperties>(() => {
@@ -216,7 +229,8 @@ watch([spotlight, targetRect], ([element, rect]) => {
   })
 }, { flush: 'post' })
 
-watch(() => controller.value?.pending.value ?? visualPhase.value === 'covering', (pending, _previous, onCleanup) => {
+// The tour's own scroll is visible progress, not a wait for the application.
+watch(() => (controller.value?.pending.value ?? visualPhase.value === 'covering') && !runtime.scrolling.value, (pending, _previous, onCleanup) => {
   slowPending.value = false
   if (!pending) return
   const timer = setTimeout(() => {
@@ -270,7 +284,11 @@ function activateFocusTrap(): void {
   focusTrap = createFocusTrap(containers, {
     escapeDeactivates: false,
     fallbackFocus: currentCard,
-    initialFocus: () => loading.value ?? root.value?.querySelector<HTMLElement>('[data-tour-part="title"]') ?? currentCard,
+    // Loading feedback announces itself through its status role. It takes
+    // focus only before a first card exists, so a short wait cannot move focus.
+    initialFocus: () => card.value
+      ? root.value?.querySelector<HTMLElement>('[data-tour-part="title"]') ?? card.value
+      : currentCard,
     isolateSubtrees: 'inert',
     delayInitialFocus: false,
     preventScroll: true,
@@ -382,6 +400,7 @@ watch(
   presentation,
   async (current, _previous, onCleanup) => {
     positionReady.value = false
+    shownPlacement.value = null
     reference.value = current?.target ?? null
     if (!current) {
       targetRect.value = null
@@ -417,6 +436,7 @@ watch(
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
       positionReady.value = true
+      if (current.target && interaction.value === 'modal') shownPlacement.value = resolvedPlacement.value
       await nextTick()
       if (presentation.value?.transitionId !== current.transitionId) return
       // A Vue DOM flush does not guarantee that the browser painted the

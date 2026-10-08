@@ -23,6 +23,7 @@ describe('scroll reveal decisions', () => {
       top: 430,
       left: 0,
       centerDistance: 30,
+      inlineDistance: 0,
       revealProximity: 220,
     })
     const slowing = sampleScrollReveal(fast.state, {
@@ -30,6 +31,7 @@ describe('scroll reveal decisions', () => {
       top: 410,
       left: 0,
       centerDistance: 10,
+      inlineDistance: 0,
       revealProximity: 220,
     })
     const ready = sampleScrollReveal(slowing.state, {
@@ -37,12 +39,28 @@ describe('scroll reveal decisions', () => {
       top: 400,
       left: 0,
       centerDistance: 0,
+      inlineDistance: 0,
       revealProximity: 220,
     })
 
     expect(fast.ready).toBe(false)
     expect(slowing.ready).toBe(false)
     expect(ready.ready).toBe(true)
+  })
+
+  it('does not reveal a vertically centered target that is still far away horizontally', () => {
+    let state = {
+      startedAt: 0, previousFrameAt: 0, previousTop: 400, previousLeft: 2000, lastActivityAt: 0,
+      moved: false, stableFrames: 0, revealFrames: 0, revealCandidateAt: null as number | null,
+    }
+    const decisions = [[16, 1998], [32, 1990], [48, 1970], [64, 1940]].map(([time, left]) => {
+      const decision = sampleScrollReveal(state, {
+        time: time!, top: 400, left: left!, centerDistance: 0, inlineDistance: left! - 1180, revealProximity: 220,
+      })
+      state = decision.state
+      return decision.ready
+    })
+    expect(decisions).toEqual([false, false, false, false])
   })
 })
 

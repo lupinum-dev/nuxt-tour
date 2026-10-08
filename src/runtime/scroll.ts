@@ -27,6 +27,8 @@ interface ScrollSample {
   readonly top: number
   readonly left: number
   readonly centerDistance: number
+  /** Distance by which a target narrower than the viewport lies outside it horizontally. */
+  readonly inlineDistance: number
   readonly revealProximity: number
 }
 
@@ -82,6 +84,7 @@ export function sampleScrollReveal(
   const stableFrames = stayedStill ? previous.stableFrames + 1 : 0
   const lastActivityAt = stayedStill ? previous.lastActivityAt : sample.time
   const revealCandidate = sample.centerDistance <= sample.revealProximity
+    && sample.inlineDistance <= sample.revealProximity
     && velocity <= revealVelocityThreshold
   const revealFrames = revealCandidate ? previous.revealFrames + 1 : 0
   const revealCandidateAt = revealCandidate
@@ -192,6 +195,7 @@ export function createTourScroller() {
           const decision = sampleScrollReveal(state, {
             time, top: rect.top, left: rect.left,
             centerDistance: Math.abs(rect.top + rect.height / 2 - view.innerHeight / 2),
+            inlineDistance: rect.width >= view.innerWidth ? 0 : Math.max(0, -rect.left, rect.right - view.innerWidth),
             revealProximity: revealProximity(target),
           })
           state = decision.state

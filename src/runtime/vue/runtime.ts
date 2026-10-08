@@ -4,7 +4,7 @@ import { TourRuntime } from '../controller'
 import { TourError } from '../errors'
 import type { TourRegistry } from '@lupinum/nuxt-tour/registry'
 import type { TourRouterAdapter } from '../router'
-import { createTourScroller, needsTourScroll } from '../scroll'
+import { createTourScroller, needsTourScroll, usesSmoothScroll } from '../scroll'
 import { normalizeTourRuntimeOptions } from '../options'
 import { canTravelBetween } from './spotlight-motion'
 import { TourTargetRegistry } from '../targets'
@@ -59,9 +59,13 @@ export class TourVueRuntime {
   readonly #scroller = createTourScroller()
   readonly targets = new TourTargetRegistry()
   readonly scene: Readonly<ShallowRef<TourScene>>
+  /** True while the tour's own scroll moves a target into view. */
+  readonly scrolling: Readonly<ShallowRef<boolean>>
   readonly presentation: ComputedRef<TourPresentation<Element> | null>
   readonly #controller: TourRuntime<Element>
   readonly #scene: ShallowRef<TourScene>
+  readonly #scrolling = shallowRef(false)
+  #scrollOperation: object | undefined
   #hostCount = 0
   #pendingPresentation: PendingVisualStep | null = null
   #pendingCover: PendingVisualStep | null = null
@@ -78,6 +82,7 @@ export class TourVueRuntime {
     const scene = shallowRef<TourScene>({ phase: 'hidden' })
     this.scene = shallowReadonly(scene)
     this.#scene = scene
+    this.scrolling = shallowReadonly(this.#scrolling)
     this.presentation = computed(() => (
       scene.value.phase === 'hidden' ? null : scene.value.presentation
     ))
@@ -151,14 +156,37 @@ export class TourVueRuntime {
       resolveTarget: (target, resolveOptions) => this.targets.wait(target, resolveOptions),
       scroll: async (target, scrollOptions, signal, scrollTarget) => {
         this.#scroller.stop()
-        if (!needsTourScroll(scrollTarget ?? target, scrollOptions)) return
-        await Promise.all([
-          coverCurrent(signal).then(() => setTransitionTarget(target)),
-          this.#scroller.scroll(scrollTarget ?? target, {
-            ...scrollOptions,
-            behavior: this.motion === 'none' ? 'instant' : scrollOptions.behavior ?? 'smooth',
-          }, signal),
-        ])
+        const scrolled = scrollTarget ?? target
+        if (!needsTourScroll(scrolled, scrollOptions)) return
+        const options: ScrollIntoViewOptions = {
+          ...scrollOptions,
+          behavior: this.motion === 'none' ? 'instant' : scrollOptions.behavior ?? 'smooth',
+        }
+        const view = scrolled.ownerDocument.defaultView
+        const reduced = view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+        // An aborted scroll can settle after its replacement starts.
+        const operation = {}
+        this.#scrollOperation = operation
+        this.#scrolling.value = true
+        try {
+          if (reduced || !usesSmoothScroll(scrolled, options.behavior)) {
+            // An instant jump must not carry the old card to a page region
+            // where its target no longer exists. Close it first.
+            await coverCurrent(signal)
+            await setTransitionTarget(target)
+            await this.#scroller.scroll(scrolled, options, signal)
+            return
+          }
+          // Smooth scrolling starts slowly, so the old step closes while the
+          // page begins to move.
+          await Promise.all([
+            coverCurrent(signal).then(() => setTransitionTarget(target)),
+            this.#scroller.scroll(scrolled, options, signal),
+          ])
+        }
+        finally {
+          if (this.#scrollOperation === operation) this.#scrolling.value = false
+        }
       },
       show: async (nextPresentation) => {
         if (!nextPresentation.target || nextPresentation.step.scroll === false) this.#scroller.stop()

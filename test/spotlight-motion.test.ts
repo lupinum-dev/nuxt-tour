@@ -58,13 +58,19 @@ describe('spotlight motion', () => {
     f.dispose()
   })
 
-  it('tracks scroll immediately and stops stale animation frames on disposal', async () => {
+  it('carries a running travel with scroll and stops stale animation frames on disposal', async () => {
     const f = fixture()
     await f.motion.move(new DOMRect(0, 0, 100, 40), false)
     const moving = f.motion.move(new DOMRect(200, 100, 200, 80), true)
     f.advance(50)
-    await f.motion.move(new DOMRect(200, 80, 200, 80), false)
-    await moving
+    const position = () => f.element.style.transform.match(/translate3d\(([-\d.]+)px, ([-\d.]+)px/u)!.slice(1).map(Number)
+    const [x, y] = position()
+    // The page scrolls up by 20 px while the opening travels.
+    const scrolled = f.motion.move(new DOMRect(200, 80, 200, 80), false)
+    expect(position()[0]).toBeCloseTo(x!, 5)
+    expect(position()[1]).toBeCloseTo(y! - 20, 5)
+    f.advance(320)
+    await Promise.all([moving, scrolled])
     expect(f.element.style.transform).toBe('translate3d(192px, 72px, 0)')
     const cancelled = f.motion.move(new DOMRect(400, 100, 200, 80), true)
     f.dispose()

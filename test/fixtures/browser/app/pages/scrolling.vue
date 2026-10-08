@@ -1,6 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'ScrollingFixture' })
 const tour = useNuxtTour('scrolling')
+const tall = useNuxtTour('tall')
 </script>
 
 <template>
@@ -11,6 +12,12 @@ const tour = useNuxtTour('scrolling')
     >
       Start scrolling tour
     </button>
+    <button
+      data-testid="start-tall"
+      @click="tall.start()"
+    >
+      Start tall target tour
+    </button>
     <div v-tour-target="'scroll-start'">
       Scroll start
     </div>
@@ -20,6 +27,13 @@ const tour = useNuxtTour('scrolling')
       style="height: 100px"
     >
       Scroll end
+    </div>
+    <div style="height: 600px" />
+    <div
+      v-tour-target="'scroll-tall'"
+      style="height: calc(100vh - 160px)"
+    >
+      Tall target
     </div>
     <div style="height: 600px" />
   </main>
