@@ -1,4 +1,3 @@
-# `.` makes the root package visible to Changesets next to the docs site and playground.
 packages:
   - .
   - docs
@@ -20,7 +19,7 @@ allowBuilds:
 
 overrides:
   # Nitro 2.12 static assets break with plugin-replace 6.0.3; see internals/migrations.md.
-  'nitropack@2.12.0>@rollup/plugin-replace': 6.0.2
+  'nitropack@2.12.0>@rollup/plugin-replace': 6.0.3
   # mkdist 2.4 requires the 0.1 line. Remove when its peer range accepts 0.2.
   vue-sfc-transformer: 0.1.1
   # Remove when fontless requires esbuild 0.28.1 or newer.
