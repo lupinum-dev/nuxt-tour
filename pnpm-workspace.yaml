@@ -30,3 +30,7 @@ overrides:
   'bundle-require>esbuild': 0.28.2
   # Remove when Vite requires esbuild 0.28.1 or newer.
   'vite>esbuild': 0.28.2
+  # Remove when every parent resolves launch-editor 2.14.2 or newer (GHSA-587h-7wmj-h5pm).
+  launch-editor: 2.14.2
+  # Remove when unplugin and Nuxt resolve vite 8.2.4 or newer (GHSA-587h-7wmj-h5pm).
+  'vite@>=8.2.0 <8.2.4': 8.2.4
